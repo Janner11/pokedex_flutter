@@ -1,0 +1,51 @@
+name: pokedex_flutter
+description: "Pokédex with Flutter and GraphQL"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Estilo iOS y general
+  cupertino_icons: ^1.0.8
+
+  # 🔹 GraphQL para consumir la API de PokeAPI
+  graphql_flutter: ^5.1.2
+
+  # 🔹 Cache de imágenes para sprites y artes oficiales
+  cached_network_image: ^3.3.1
+
+  # 🔹 Navegación moderna (lista ⇄ detalle)
+  go_router: ^14.2.0
+
+  # 🔹 Animaciones suaves (aparición de ítems, transiciones)
+  flutter_staggered_animations: ^1.1.1
+
+  # 🔹 Fuente Roboto (ya incluida en Material3)
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Si agregas imágenes personalizadas, descomenta y añade sus rutas:
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
+
+  # Puedes usar fuentes personalizadas si lo deseas:
+  # fonts:
+  #   - family: Roboto
+  #     fonts:
+  #       - asset: fonts/Roboto-Regular.ttf
+  #       - asset: fonts/Roboto-Bold.ttf
