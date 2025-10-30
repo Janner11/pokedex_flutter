@@ -8,13 +8,29 @@ class TypeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = typeColor(type, Theme.of(context).colorScheme.secondary);
-    return Chip(
-      label: Text(type.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w700)),
-      backgroundColor: c.withOpacity(.15),
-      side: BorderSide(color: c.withOpacity(.35)),
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+    return Container(
+      decoration: BoxDecoration(
+        color: c.withOpacity(.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: c.withOpacity(.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: c.withOpacity(.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: Text(
+        type.toUpperCase(),
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+          color: c.withOpacity(.9),
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 }

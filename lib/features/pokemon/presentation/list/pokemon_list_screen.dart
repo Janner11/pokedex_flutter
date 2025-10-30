@@ -13,15 +13,16 @@ class PokemonListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const PokedexAppBar(title: "Pokédex"),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
+      body: Container(
+        color: Theme.of(context).colorScheme.background,
+        padding: const EdgeInsets.all(16),
         child: GridView.builder(
           itemCount: mockList.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: .84,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 0.88,
           ),
           itemBuilder: (context, i) {
             final p = mockList[i];
@@ -30,36 +31,50 @@ class PokemonListScreen extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                base.withOpacity(.18),
-                base.withOpacity(.06),
+                base.withOpacity(.22),
+                base.withOpacity(.08),
+                base.withOpacity(.02),
               ],
+              stops: const [0.0, 0.6, 1.0],
             );
 
             return InkWell(
               onTap: () => context.go("/pokemon/${p.id}"),
-              borderRadius: BorderRadius.circular(18),
-              child: Ink(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                   gradient: bg,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Stack(
                   children: [
-                    // Sutil “disco” tipo pokéball
+                    // Efecto de pokéball
                     Positioned(
-                      right: -18,
-                      top: -18,
+                      right: -24,
+                      top: -24,
                       child: Container(
-                        width: 110,
-                        height: 110,
+                        width: 120,
+                        height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: base.withOpacity(.08),
+                          gradient: RadialGradient(
+                            colors: [
+                              base.withOpacity(.12),
+                              base.withOpacity(.04),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -70,6 +85,8 @@ class PokemonListScreen extends StatelessWidget {
                                   p.name[0].toUpperCase() + p.name.substring(1),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w800,
+                                    color: Colors.grey[800],
+                                    fontSize: 16,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -78,10 +95,10 @@ class PokemonListScreen extends StatelessWidget {
                               PokedexBadge(id: p.id),
                             ],
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Wrap(
                             spacing: 6,
-                            runSpacing: -6,
+                            runSpacing: 4,
                             children: p.types.map((t) => TypeChip(type: t)).toList(),
                           ),
                           const Spacer(),
@@ -91,8 +108,9 @@ class PokemonListScreen extends StatelessWidget {
                               alignment: Alignment.bottomRight,
                               child: Image.network(
                                 p.image,
-                                height: 110,
+                                height: 96,
                                 fit: BoxFit.contain,
+                                filterQuality: FilterQuality.medium,
                               ),
                             ),
                           ),

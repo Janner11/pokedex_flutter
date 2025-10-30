@@ -30,6 +30,10 @@ class App extends StatelessWidget {
           ),
         ),
       ],
+      // Transiciones personalizadas
+      observers: [
+        HeroController(),
+      ],
     );
 
     return GraphQLProvider(
@@ -38,6 +42,16 @@ class App extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
         routerConfig: router,
+        // Mejoras adicionales de rendimiento y UX
+        builder: (context, child) {
+          return ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              scrollbars: false,
+              overscroll: false,
+            ),
+            child: child!,
+          );
+        },
       ),
     );
   }
