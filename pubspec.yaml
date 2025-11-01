@@ -11,6 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  fl_chart: ^0.68.0
+
   # Estilo iOS y general
   cupertino_icons: ^1.0.8
 
@@ -22,6 +24,10 @@ dependencies:
 
   # 🔹 Navegación moderna (lista ⇄ detalle)
   go_router: ^14.2.0
+
+  # 🔹 Base de datos local para favoritos
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
 
   # 🔹 Animaciones suaves (aparición de ítems, transiciones)
   flutter_staggered_animations: ^1.1.1

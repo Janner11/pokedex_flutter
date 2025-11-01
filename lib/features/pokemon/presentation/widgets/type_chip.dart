@@ -3,11 +3,20 @@ import '../../../pokemon/data/type_colors.dart';
 
 class TypeChip extends StatelessWidget {
   final String type;
-  const TypeChip({super.key, required this.type});
+  final bool isSmall;
+
+  const TypeChip({super.key, required this.type, this.isSmall = false});
 
   @override
   Widget build(BuildContext context) {
     final c = typeColor(type, Theme.of(context).colorScheme.secondary);
+
+    // Conditionally set padding and font size based on the 'isSmall' flag.
+    final padding = isSmall
+        ? const EdgeInsets.symmetric(horizontal: 8, vertical: 3)
+        : const EdgeInsets.symmetric(horizontal: 12, vertical: 5);
+    final fontSize = isSmall ? 10.0 : 11.0;
+
     return Container(
       decoration: BoxDecoration(
         color: c.withOpacity(.18),
@@ -21,12 +30,12 @@ class TypeChip extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: padding,
       child: Text(
         type.toUpperCase(),
         style: TextStyle(
           fontWeight: FontWeight.w700,
-          fontSize: 11,
+          fontSize: fontSize,
           color: c.withOpacity(.9),
           letterSpacing: 0.5,
         ),
