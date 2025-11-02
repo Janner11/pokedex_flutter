@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 /// Automáticamente mostrará un botón de "atrás" en las pantallas internas.
 class PokedexAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
-  const PokedexAppBar({super.key, this.title});
+  final List<Widget>? actions;
+  const PokedexAppBar({super.key, this.title, this.actions});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -29,6 +30,7 @@ class PokedexAppBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: true,
       elevation: 4,
       shadowColor: Colors.black.withOpacity(0.3),
+      actions: actions,
     );
   }
 }

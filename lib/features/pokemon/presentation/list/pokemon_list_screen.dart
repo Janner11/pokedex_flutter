@@ -10,12 +10,16 @@ import '../widgets/error_view.dart';
 import '../widgets/type_chip.dart';
 import '../widgets/pokedex_appbar.dart';
 import '../widgets/pokedex_badge.dart';
+import '../widgets/filter_dialog.dart';
 
 const getPokemonList = r"""
-  query GetPokemonList($limit: Int!, $offset: Int!, $where: pokemon_v2_pokemon_bool_exp) {
-    pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: {id: asc}, where: $where) {
+  query GetPokemonList($limit: Int!, $offset: Int!, $where: pokemon_v2_pokemon_bool_exp, $order_by: [pokemon_v2_pokemon_order_by!]) {
+    pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $order_by, where: $where) {
       id
       name
+      pokemon_v2_pokemonspecy {
+        generation_id
+      }
       pokemon_v2_pokemontypes {
         pokemon_v2_type {
           name
@@ -44,6 +48,12 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
   String _searchTerm = '';
   Timer? _debounce;
 
+  // Filter and sort state
+  String? _selectedType;
+  int? _selectedGeneration;
+  String _sortBy = 'id';
+  bool _sortAscending = true;
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -61,18 +71,81 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
     });
   }
 
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return FilterDialog(
+          selectedType: _selectedType,
+          selectedGeneration: _selectedGeneration,
+          sortBy: _sortBy,
+          sortAscending: _sortAscending,
+        );
+      },
+    ).then((value) {
+      if (value != null) {
+        setState(() {
+          _selectedType = value['type'];
+          _selectedGeneration = value['generation'];
+          _sortBy = value['sortBy'];
+          _sortAscending = value['sortAscending'];
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Build the 'where' clause for the query
+    final whereClauses = <Map<String, dynamic>>[];
+    if (_searchTerm.isNotEmpty) {
+      whereClauses.add({'name': {'_ilike': '%$_searchTerm%'}});
+    }
+    if (_selectedType != null) {
+      whereClauses.add({
+        'pokemon_v2_pokemontypes': {
+          'pokemon_v2_type': {
+            'name': {'_eq': _selectedType}
+          }
+        }
+      });
+    }
+    if (_selectedGeneration != null) {
+      whereClauses.add({
+        'pokemon_v2_pokemonspecy': {
+          'generation_id': {'_eq': _selectedGeneration}
+        }
+      });
+    }
+
+    final where = whereClauses.isEmpty
+        ? null
+        : whereClauses.length == 1
+            ? whereClauses.first
+            : {'_and': whereClauses};
+
+    // Build the 'order_by' clause
+    final orderBy = [
+      {_sortBy: _sortAscending ? 'asc' : 'desc'}
+    ];
+
     final queryVars = {
       'limit': _pokemonPageLimit,
       'offset': 0,
-      'where': _searchTerm.isEmpty
-          ? null
-          : {'name': {'_ilike': '%$_searchTerm%'}}
+      'where': where,
+      'order_by': orderBy,
     };
 
     return Scaffold(
-      appBar: const PokedexAppBar(title: "Pokédex"),
+      appBar: PokedexAppBar(
+        title: "Pokédex",
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterDialog,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(

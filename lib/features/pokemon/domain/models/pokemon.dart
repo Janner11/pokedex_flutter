@@ -26,6 +26,7 @@ class Pokemon {
   final List<String> abilities;
   final List<Evolution> evolutionChain;
   final List<Move> moves;
+  final int? generationId;
 
   const Pokemon({
     required this.id,
@@ -36,6 +37,7 @@ class Pokemon {
     required this.abilities,
     required this.evolutionChain,
     required this.moves,
+    this.generationId,
   });
 
   static const Map<String, String> _statNameMapping = {
@@ -83,19 +85,23 @@ class Pokemon {
 
     final List<Evolution> evolutionChain = [];
     final speciesData = map['pokemon_v2_pokemonspecy'];
+    int? generationId;
     if (speciesData != null) {
-      final chainData = speciesData['pokemon_v2_evolutionchain']['pokemon_v2_pokemonspecies'] as List;
-      for (final species in chainData) {
-        final spritesList = species['pokemon_v2_pokemons']?.first?['pokemon_v2_pokemonsprites'] as List?;
-        final evoSpritesRaw = spritesList?.first?['sprites'];
-        if (evoSpritesRaw != null) {
-          final evoSpritesMap = _parseSprites(evoSpritesRaw);
-          final evoImageUrl = evoSpritesMap['other']?['official-artwork']?['front_default'] ?? evoSpritesMap['front_default'] ?? '';
-          evolutionChain.add((
-            id: species['id'],
-            name: species['name'],
-            imageUrl: evoImageUrl,
-          ));
+      generationId = speciesData['generation_id'];
+      final chainData = speciesData['pokemon_v2_evolutionchain']?['pokemon_v2_pokemonspecies'] as List?;
+      if (chainData != null) {
+        for (final species in chainData) {
+          final spritesList = species['pokemon_v2_pokemons']?.first?['pokemon_v2_pokemonsprites'] as List?;
+          final evoSpritesRaw = spritesList?.first?['sprites'];
+          if (evoSpritesRaw != null) {
+            final evoSpritesMap = _parseSprites(evoSpritesRaw);
+            final evoImageUrl = evoSpritesMap['other']?['official-artwork']?['front_default'] ?? evoSpritesMap['front_default'] ?? '';
+            evolutionChain.add((
+              id: species['id'],
+              name: species['name'],
+              imageUrl: evoImageUrl,
+            ));
+          }
         }
       }
     }
@@ -126,6 +132,7 @@ class Pokemon {
       abilities: abilities,
       evolutionChain: evolutionChain,
       moves: moves,
+      generationId: generationId,
     );
   }
 }
