@@ -1,11 +1,20 @@
 import 'dart:convert';
 
-// A type to represent a single pokemon in an evolution chain.
-typedef Evolution = ({
-  int id,
-  String name,
-  String imageUrl,
-});
+class Evolution {
+  final int id;
+  final String name;
+  final String imageUrl;
+  final String evolutionDetails;
+  final List<Evolution> evolutions;
+
+  Evolution({
+    required this.id,
+    required this.name,
+    required this.imageUrl,
+    required this.evolutionDetails,
+    this.evolutions = const [],
+  });
+}
 
 // A type to represent a single move.
 typedef Move = ({
@@ -83,6 +92,7 @@ class Pokemon {
           .map((a) => a['pokemon_v2_ability']['name'] as String));
     }
 
+    // --- EVOLUTION CHAIN PARSING ---
     final List<Evolution> evolutionChain = [];
     final speciesData = map['pokemon_v2_pokemonspecy'];
     int? generationId;
@@ -90,19 +100,63 @@ class Pokemon {
       generationId = speciesData['generation_id'];
       final chainData = speciesData['pokemon_v2_evolutionchain']?['pokemon_v2_pokemonspecies'] as List?;
       if (chainData != null) {
+        final evolutionMap = <int, List<Map<String, dynamic>>>{};
         for (final species in chainData) {
-          final spritesList = species['pokemon_v2_pokemons']?.first?['pokemon_v2_pokemonsprites'] as List?;
-          final evoSpritesRaw = spritesList?.first?['sprites'];
-          if (evoSpritesRaw != null) {
-            final evoSpritesMap = _parseSprites(evoSpritesRaw);
+          final fromId = species['evolves_from_species_id'];
+          evolutionMap.putIfAbsent(fromId ?? 0, () => []).add(species);
+        }
+
+        List<Evolution> buildEvolutionTree(int? parentId) {
+          final childrenData = evolutionMap[parentId ?? 0] ?? [];
+          return childrenData.map((species) {
+            final spritesList = species['pokemon_v2_pokemons']?.first?['pokemon_v2_pokemonsprites'] as List?;
+            final evoSpritesRaw = spritesList?.first?['sprites'];
+            final evoSpritesMap = _parseSprites(evoSpritesRaw!);
             final evoImageUrl = evoSpritesMap['other']?['official-artwork']?['front_default'] ?? evoSpritesMap['front_default'] ?? '';
-            evolutionChain.add((
+
+            String evolutionDetails = '';
+            final evolutionData = species['pokemon_v2_pokemonevolutions'] as List?;
+            if (evolutionData != null && evolutionData.isNotEmpty) {
+              final details = evolutionData.first;
+              final trigger = details['pokemon_v2_evolutiontrigger']['name'];
+
+              if (trigger == 'level-up') {
+                if (details['min_level'] != null) {
+                  evolutionDetails = 'Level ${details['min_level']}';
+                } else if (details['min_happiness'] != null) {
+                  evolutionDetails = 'High Friendship';
+                  if (details['time_of_day'] != null && details['time_of_day'] != '') {
+                    evolutionDetails += ' (${details['time_of_day']})';
+                  }
+                } else if (details['known_move_type_id'] != null) {
+                  evolutionDetails = 'Knows a Fairy-type move';
+                } else if (details['pokemon_v2_location'] != null) {
+                  evolutionDetails = 'Level up near ${details['pokemon_v2_location']['name']}';
+                } else {
+                  evolutionDetails = 'Level up';
+                }
+              } else if (trigger == 'trade') {
+                evolutionDetails = 'Trade';
+              } else if (trigger == 'use-item') {
+                evolutionDetails = 'Use ${details['pokemon_v2_item']['name']}';
+              } else if (trigger == 'shed') {
+                evolutionDetails = 'Shed';
+              } else if (trigger == 'other') {
+                evolutionDetails = 'Other';
+              }
+            }
+
+            return Evolution(
               id: species['id'],
               name: species['name'],
               imageUrl: evoImageUrl,
-            ));
-          }
+              evolutionDetails: evolutionDetails,
+              evolutions: buildEvolutionTree(species['id']),
+            );
+          }).toList();
         }
+
+        evolutionChain.addAll(buildEvolutionTree(null));
       }
     }
 

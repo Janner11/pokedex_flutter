@@ -44,9 +44,25 @@ const getPokemonDetail = r"""
           pokemon_v2_pokemonspecies(order_by: {order: asc}) {
             id
             name
+            evolves_from_species_id
             pokemon_v2_pokemons {
               pokemon_v2_pokemonsprites {
                 sprites
+              }
+            }
+            pokemon_v2_pokemonevolutions {
+              min_level
+              min_happiness
+              time_of_day
+              known_move_type_id
+              pokemon_v2_item {
+                name
+              }
+              pokemon_v2_evolutiontrigger {
+                name
+              }
+              pokemon_v2_location {
+                name
               }
             }
           }
@@ -68,7 +84,8 @@ const getPokemonDetail = r"""
       }
     }
   }
-""";
+"""
+;
 
 class PokemonDetailScreen extends StatefulWidget {
   final String id;

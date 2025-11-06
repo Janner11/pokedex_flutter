@@ -8,8 +8,7 @@ class EvolutionChainView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // If the pokemon doesn't evolve, show an empty state.
-    if (evolutionChain.length < 2) {
+    if (evolutionChain.isEmpty || (evolutionChain.length == 1 && evolutionChain.first.evolutions.isEmpty)) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -19,20 +18,37 @@ class EvolutionChainView extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: evolutionChain.map((evo) {
-          final isLast = evo == evolutionChain.last;
-          return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: evolutionChain.map((evo) => _EvolutionNode(evolution: evo)).toList(),
+    );
+  }
+}
+
+class _EvolutionNode extends StatelessWidget {
+  final Evolution evolution;
+  final int level;
+  const _EvolutionNode({required this.evolution, this.level = 0});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: level * 16.0),
+          child: Row(
             children: [
-              _EvolutionCard(evolution: evo),
-              if (!isLast)
-                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.grey, size: 20),
+              if (level > 0) ...[
+                const Icon(Icons.subdirectory_arrow_right, color: Colors.grey, size: 20),
+                const SizedBox(width: 8),
+              ],
+              _EvolutionCard(evolution: evolution),
             ],
-          );
-        }).toList(),
-      ),
+          ),
+        ),
+        ...evolution.evolutions.map((evo) => _EvolutionNode(evolution: evo, level: level + 1)),
+      ],
     );
   }
 }
@@ -45,29 +61,40 @@ class _EvolutionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: () => context.push('/pokemon/${evolution.id}'),
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        elevation: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: InkWell(
+        onTap: () => context.push('/pokemon/${evolution.id}'),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
-          child: Column(
+          child: Row(
             children: [
               Image.network(
                 evolution.imageUrl,
                 width: 80,
                 height: 80,
                 fit: BoxFit.contain,
-                // Show a placeholder if image is missing
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
               ),
-              const SizedBox(height: 8),
-              Text(
-                evolution.name[0].toUpperCase() + evolution.name.substring(1),
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    evolution.name[0].toUpperCase() + evolution.name.substring(1),
+                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  if (evolution.evolutionDetails.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      evolution.evolutionDetails,
+                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                    ),
+                  ]
+                ],
               ),
             ],
           ),
