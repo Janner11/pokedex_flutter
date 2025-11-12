@@ -11,8 +11,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  fl_chart: ^0.68.0
-
   # Estilo iOS y general
   cupertino_icons: ^1.0.8
 
@@ -35,23 +33,24 @@ dependencies:
   # 🔹 Fuente Roboto (ya incluida en Material3)
   google_fonts: ^6.2.1
 
+  # 🔹 Gráficos (Radar Chart para stats)
+  fl_chart: ^0.68.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  # 🔹 Generador de iconos de la app
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
 
-  # Si agregas imágenes personalizadas, descomenta y añade sus rutas:
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
-
-  # Puedes usar fuentes personalizadas si lo deseas:
-  # fonts:
-  #   - family: Roboto
-  #     fonts:
-  #       - asset: fonts/Roboto-Regular.ttf
-  #       - asset: fonts/Roboto-Bold.ttf
+# --- FLUTTER LAUNCHER ICONS CONFIG ---
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/icon.png"
+  min_sdk_android: 21 # required for adaptive icons
+# -------------------------------------
