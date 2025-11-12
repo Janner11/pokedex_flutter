@@ -40,6 +40,7 @@ const getPokemonDetail = r"""
         }
       }
       pokemon_v2_pokemonspecy {
+        generation_id
         pokemon_v2_evolutionchain {
           pokemon_v2_pokemonspecies(order_by: {order: asc}) {
             id
@@ -68,7 +69,8 @@ const getPokemonDetail = r"""
           }
         }
       }
-      pokemon_v2_pokemonmoves(where: {pokemon_v2_versiongroup: {name: {_eq: "scarlet-violet"}}}) {
+      # --- MODIFIED MOVES QUERY: Fetch all moves from all games ---
+      pokemon_v2_pokemonmoves {
         level
         pokemon_v2_move {
           name
@@ -81,11 +83,14 @@ const getPokemonDetail = r"""
         pokemon_v2_movelearnmethod {
           name
         }
+        # Also fetch the version group (game) for each move
+        pokemon_v2_versiongroup {
+          name
+        }
       }
     }
   }
-"""
-;
+""";
 
 class PokemonDetailScreen extends StatefulWidget {
   final String id;
@@ -219,7 +224,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                           const SizedBox(height: 24),
                           _Section(title: "Movimientos"),
                           const SizedBox(height: 12),
-                          MovesListView(moves: pokemon.moves),
+                          MovesListView(moves: pokemon.moves, generationId: pokemon.generationId),
                           const SizedBox(height: 80), // Space for FloatingActionButton
                         ],
                       ),

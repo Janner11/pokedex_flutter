@@ -4,14 +4,15 @@ import '../widgets/type_chip.dart';
 
 class MovesListView extends StatefulWidget {
   final List<Move> moves;
-  const MovesListView({super.key, required this.moves});
+  final int generationId;
+  const MovesListView({super.key, required this.moves, required this.generationId});
 
   @override
   State<MovesListView> createState() => _MovesListViewState();
 }
 
 class _MovesListViewState extends State<MovesListView> {
-  // Possible filters
+  // Possible filters for learning methods
   final _filters = {
     'Por Nivel': 'level-up',
     'Máquina/MT': 'machine',
@@ -20,16 +21,49 @@ class _MovesListViewState extends State<MovesListView> {
   };
   String _selectedFilter = 'level-up';
 
+  // Map generation ID to a relevant version group (game)
+  static const Map<int, String> _generationVersionGroup = {
+    1: 'red-blue',
+    2: 'gold-silver',
+    3: 'ruby-sapphire',
+    4: 'diamond-pearl',
+    5: 'black-white',
+    6: 'x-y',
+    7: 'sun-moon',
+    8: 'sword-shield',
+    9: 'scarlet-violet',
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final filteredMoves = widget.moves.where((m) => m.learnMethod == _selectedFilter).toList();
+    // --- ENHANCED FILTERING LOGIC ---
+    List<Move> filteredMoves;
+    if (_selectedFilter == 'tutor' || _selectedFilter == 'egg') {
+      // For Tutor and Egg moves, show all available moves of that type across all games.
+      filteredMoves = widget.moves.where((m) => m.learnMethod == _selectedFilter).toList();
+    } else {
+      // For Level-up and Machine, filter by the most relevant game for that generation.
+      final relevantVersionGroup = _generationVersionGroup[widget.generationId] ?? 'scarlet-violet';
+      filteredMoves = widget.moves.where((m) {
+        return m.versionGroup == relevantVersionGroup && m.learnMethod == _selectedFilter;
+      }).toList();
+    }
+    // Remove duplicates by name
+    final uniqueMoves = <String, Move>{};
+    for (var move in filteredMoves) {
+      uniqueMoves[move.name] = move;
+    }
+    filteredMoves = uniqueMoves.values.toList();
+    if (_selectedFilter == 'level-up') {
+      filteredMoves.sort((a,b) => a.level.compareTo(b.level));
+    }
+    // --------------------------------
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Filter Chips
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Wrap(
@@ -39,7 +73,6 @@ class _MovesListViewState extends State<MovesListView> {
               return FilterChip(
                 label: Text(entry.key),
                 selected: isSelected,
-                // --- STYLE FIX ---
                 backgroundColor: Colors.grey[200],
                 labelStyle: TextStyle(color: Colors.grey[800]),
                 selectedColor: theme.colorScheme.primary,
@@ -47,7 +80,6 @@ class _MovesListViewState extends State<MovesListView> {
                 side: BorderSide(
                   color: isSelected ? Colors.transparent : Colors.grey[400]!,
                 ),
-                // -----------------
                 onSelected: (selected) {
                   if (selected) {
                     setState(() {
@@ -61,7 +93,6 @@ class _MovesListViewState extends State<MovesListView> {
         ),
         const SizedBox(height: 16),
 
-        // Moves List
         if (filteredMoves.isEmpty)
           const Center(
             child: Padding(
@@ -79,7 +110,6 @@ class _MovesListViewState extends State<MovesListView> {
               final move = filteredMoves[index];
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                // Level for 'level-up' moves
                 leading: _selectedFilter == 'level-up'
                     ? Text(
                         'Nvl. ${move.level}',
@@ -107,7 +137,6 @@ class _MovesListViewState extends State<MovesListView> {
   }
 }
 
-// A small pill-shaped widget to display a stat (like PWR or PP)
 class _StatPill extends StatelessWidget {
   final String label;
   final String value;

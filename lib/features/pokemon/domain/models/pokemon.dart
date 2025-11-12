@@ -1,22 +1,23 @@
 import 'dart:convert';
 
-class Evolution {
+// Represents a node in an evolution tree.
+// It can have its own list of subsequent evolutions (branches).
+class EvolutionNode {
   final int id;
   final String name;
   final String imageUrl;
-  final String evolutionDetails;
-  final List<Evolution> evolutions;
+  final String trigger;
+  final List<EvolutionNode> evolutions;
 
-  Evolution({
+  const EvolutionNode({
     required this.id,
     required this.name,
     required this.imageUrl,
-    required this.evolutionDetails,
+    required this.trigger,
     this.evolutions = const [],
   });
 }
 
-// A type to represent a single move.
 typedef Move = ({
   String name,
   String type,
@@ -24,6 +25,7 @@ typedef Move = ({
   int? pp,
   int level,
   String learnMethod,
+  String versionGroup,
 });
 
 class Pokemon {
@@ -33,9 +35,9 @@ class Pokemon {
   final List<String> types;
   final Map<String, int> stats;
   final List<String> abilities;
-  final List<Evolution> evolutionChain;
+  final List<EvolutionNode> evolutionChain;
   final List<Move> moves;
-  final int? generationId;
+  final int generationId;
 
   const Pokemon({
     required this.id,
@@ -46,7 +48,7 @@ class Pokemon {
     required this.abilities,
     required this.evolutionChain,
     required this.moves,
-    this.generationId,
+    required this.generationId,
   });
 
   static const Map<String, String> _statNameMapping = {
@@ -67,6 +69,7 @@ class Pokemon {
 
     final int id = map['id'];
     final String name = map['name'];
+    final int generationId = map['pokemon_v2_pokemonspecy']?['generation_id'] ?? 1;
 
     final List<String> types = (map['pokemon_v2_pokemontypes'] as List)
         .map((t) => t['pokemon_v2_type']['name'] as String)
@@ -92,75 +95,87 @@ class Pokemon {
           .map((a) => a['pokemon_v2_ability']['name'] as String));
     }
 
-    // --- EVOLUTION CHAIN PARSING ---
-    final List<Evolution> evolutionChain = [];
-    final speciesData = map['pokemon_v2_pokemonspecy'];
-    int? generationId;
-    if (speciesData != null) {
-      generationId = speciesData['generation_id'];
-      final chainData = speciesData['pokemon_v2_evolutionchain']?['pokemon_v2_pokemonspecies'] as List?;
-      if (chainData != null) {
-        final evolutionMap = <int, List<Map<String, dynamic>>>{};
-        for (final species in chainData) {
-          final fromId = species['evolves_from_species_id'];
-          evolutionMap.putIfAbsent(fromId ?? 0, () => []).add(species);
-        }
+    // --- HIERARCHICAL EVOLUTION CHAIN PARSING (IMPROVED) ---
+    List<EvolutionNode> buildEvolutionTree(List<dynamic> speciesList) {
+      final nodeMap = <int, EvolutionNode>{};
+      final triggerMap = <int, String>{};
 
-        List<Evolution> buildEvolutionTree(int? parentId) {
-          final childrenData = evolutionMap[parentId ?? 0] ?? [];
-          return childrenData.map((species) {
-            final spritesList = species['pokemon_v2_pokemons']?.first?['pokemon_v2_pokemonsprites'] as List?;
-            final evoSpritesRaw = spritesList?.first?['sprites'];
-            final evoSpritesMap = _parseSprites(evoSpritesRaw!);
-            final evoImageUrl = evoSpritesMap['other']?['official-artwork']?['front_default'] ?? evoSpritesMap['front_default'] ?? '';
+      for (final species in speciesList) {
+        final int speciesId = species['id'];
 
-            String evolutionDetails = '';
-            final evolutionData = species['pokemon_v2_pokemonevolutions'] as List?;
-            if (evolutionData != null && evolutionData.isNotEmpty) {
-              final details = evolutionData.first;
-              final trigger = details['pokemon_v2_evolutiontrigger']['name'];
+        final spritesList = species['pokemon_v2_pokemons']?.first?['pokemon_v2_pokemonsprites'] as List?;
+        final evoSpritesRaw = spritesList?.first?['sprites'];
+        final evoSpritesMap = evoSpritesRaw != null ? _parseSprites(evoSpritesRaw) : {};
+        final evoImageUrl = evoSpritesMap['other']?['official-artwork']?['front_default'] ?? evoSpritesMap['front_default'] ?? '';
+        
+        final evoDetails = species['pokemon_v2_pokemonevolutions'] as List;
+        if (evoDetails.isNotEmpty) {
+            final detail = evoDetails.first;
+            final trigger = detail['pokemon_v2_evolutiontrigger']['name'];
+            String triggerText = '';
 
-              if (trigger == 'level-up') {
-                if (details['min_level'] != null) {
-                  evolutionDetails = 'Level ${details['min_level']}';
-                } else if (details['min_happiness'] != null) {
-                  evolutionDetails = 'High Friendship';
-                  if (details['time_of_day'] != null && details['time_of_day'] != '') {
-                    evolutionDetails += ' (${details['time_of_day']})';
-                  }
-                } else if (details['known_move_type_id'] != null) {
-                  evolutionDetails = 'Knows a Fairy-type move';
-                } else if (details['pokemon_v2_location'] != null) {
-                  evolutionDetails = 'Level up near ${details['pokemon_v2_location']['name']}';
+            // --- ENHANCED TRIGGER LOGIC ---
+            if (trigger == 'level-up') {
+              if (detail['min_happiness'] != null) {
+                if (detail['time_of_day'] == 'day') {
+                  triggerText = 'High Friendship (day)';
+                } else if (detail['time_of_day'] == 'night') {
+                  triggerText = 'High Friendship (night)';
                 } else {
-                  evolutionDetails = 'Level up';
+                  triggerText = 'High Friendship';
                 }
-              } else if (trigger == 'trade') {
-                evolutionDetails = 'Trade';
-              } else if (trigger == 'use-item') {
-                evolutionDetails = 'Use ${details['pokemon_v2_item']['name']}';
-              } else if (trigger == 'shed') {
-                evolutionDetails = 'Shed';
-              } else if (trigger == 'other') {
-                evolutionDetails = 'Other';
+              } else if (detail['known_move_type_id'] == 18) { // 18 is the ID for Fairy type
+                triggerText = 'Knows Fairy-type move';
+              } else if (detail['pokemon_v2_location'] != null) {
+                triggerText = 'Near special location';
+              } else {
+                triggerText = 'Nivel ${detail['min_level']}';
               }
+            } else if (trigger == 'trade') {
+              triggerText = 'Intercambio';
+            } else if (trigger == 'use-item') {
+              final itemName = detail['pokemon_v2_item']?['name']?.replaceAll('-', ' ') ?? '';
+              final capitalizedItemName = itemName.split(' ').map((w) => w[0].toUpperCase() + w.substring(1)).join(' ');
+              triggerText = 'Usar $capitalizedItemName';
             }
-
-            return Evolution(
-              id: species['id'],
-              name: species['name'],
-              imageUrl: evoImageUrl,
-              evolutionDetails: evolutionDetails,
-              evolutions: buildEvolutionTree(species['id']),
-            );
-          }).toList();
+            triggerMap[speciesId] = triggerText;
         }
 
-        evolutionChain.addAll(buildEvolutionTree(null));
+        nodeMap[speciesId] = EvolutionNode(
+          id: speciesId,
+          name: species['name'],
+          imageUrl: evoImageUrl,
+          trigger: triggerMap[speciesId] ?? '',
+          evolutions: [],
+        );
       }
+
+      final rootNodes = <EvolutionNode>[];
+      for (final species in speciesList) {
+        final int speciesId = species['id'];
+        final parentId = species['evolves_from_species_id'];
+        final currentNode = nodeMap[speciesId]!;
+
+        if (parentId != null && nodeMap.containsKey(parentId)) {
+          nodeMap[parentId]!.evolutions.add(currentNode);
+        } else {
+          rootNodes.add(currentNode);
+        }
+      }
+      return rootNodes;
     }
 
-    // --- MOVES PARSING ---
+    final List<EvolutionNode> evolutionChain;
+    final speciesData = map['pokemon_v2_pokemonspecy'];
+    final evolutionChainData = speciesData?['pokemon_v2_evolutionchain'];
+    final chainSpeciesList = evolutionChainData?['pokemon_v2_pokemonspecies'] as List?;
+    
+    if (chainSpeciesList != null && chainSpeciesList.isNotEmpty) {
+      evolutionChain = buildEvolutionTree(chainSpeciesList);
+    } else {
+      evolutionChain = [];
+    }
+
     final List<Move> moves = [];
     if (map.containsKey('pokemon_v2_pokemonmoves')) {
       for (final moveData in map['pokemon_v2_pokemonmoves'] as List) {
@@ -171,10 +186,10 @@ class Pokemon {
           pp: moveData['pokemon_v2_move']['pp'],
           level: moveData['level'],
           learnMethod: moveData['pokemon_v2_movelearnmethod']['name'],
+          versionGroup: moveData['pokemon_v2_versiongroup']['name'],
         ));
       }
     }
-    // Sort moves by level by default
     moves.sort((a, b) => a.level.compareTo(b.level));
 
     return Pokemon(

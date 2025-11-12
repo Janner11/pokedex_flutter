@@ -3,12 +3,12 @@ import 'package:go_router/go_router.dart';
 import '../../domain/models/pokemon.dart';
 
 class EvolutionChainView extends StatelessWidget {
-  final List<Evolution> evolutionChain;
+  final List<EvolutionNode> evolutionChain;
   const EvolutionChainView({super.key, required this.evolutionChain});
 
   @override
   Widget build(BuildContext context) {
-    if (evolutionChain.isEmpty || (evolutionChain.length == 1 && evolutionChain.first.evolutions.isEmpty)) {
+    if (evolutionChain.isEmpty) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -18,17 +18,19 @@ class EvolutionChainView extends StatelessWidget {
       );
     }
 
+    // The root of the tree, starting with indentation level 0
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: evolutionChain.map((evo) => _EvolutionNode(evolution: evo)).toList(),
+      children: evolutionChain.map((node) => _EvolutionNodeWidget(node: node)).toList(),
     );
   }
 }
 
-class _EvolutionNode extends StatelessWidget {
-  final Evolution evolution;
+/// A recursive widget that displays a node and its children.
+class _EvolutionNodeWidget extends StatelessWidget {
+  final EvolutionNode node;
   final int level;
-  const _EvolutionNode({required this.evolution, this.level = 0});
+  const _EvolutionNodeWidget({required this.node, this.level = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -36,25 +38,30 @@ class _EvolutionNode extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
+          // Indent the card based on its level in the tree
           padding: EdgeInsets.only(left: level * 16.0),
           child: Row(
             children: [
+              // Show arrow for nodes that are not at the root
               if (level > 0) ...[
                 const Icon(Icons.subdirectory_arrow_right, color: Colors.grey, size: 20),
                 const SizedBox(width: 8),
               ],
-              _EvolutionCard(evolution: evolution),
+              _EvolutionCard(evolution: node),
             ],
           ),
         ),
-        ...evolution.evolutions.map((evo) => _EvolutionNode(evolution: evo, level: level + 1)),
+        // --- RECURSION ---
+        // Render the children of the current node, increasing the indentation level
+        ...node.evolutions.map((evo) => _EvolutionNodeWidget(node: evo, level: level + 1)),
       ],
     );
   }
 }
 
+/// The visual card for a single Pokémon in the chain.
 class _EvolutionCard extends StatelessWidget {
-  final Evolution evolution;
+  final EvolutionNode evolution;
   const _EvolutionCard({required this.evolution});
 
   @override
@@ -70,14 +77,15 @@ class _EvolutionCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
+            mainAxisSize: MainAxisSize.min, // Make the card only as wide as needed
             children: [
               Image.network(
                 evolution.imageUrl,
-                width: 80,
-                height: 80,
+                width: 70,
+                height: 70,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
+                    const Icon(Icons.image_not_supported, size: 70, color: Colors.grey),
               ),
               const SizedBox(width: 12),
               Column(
@@ -85,17 +93,19 @@ class _EvolutionCard extends StatelessWidget {
                 children: [
                   Text(
                     evolution.name[0].toUpperCase() + evolution.name.substring(1),
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  if (evolution.evolutionDetails.isNotEmpty) ...[
+                  // Display the evolution trigger if it exists
+                  if (evolution.trigger.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      evolution.evolutionDetails,
+                      evolution.trigger,
                       style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                     ),
                   ]
                 ],
               ),
+              const SizedBox(width: 12),
             ],
           ),
         ),
