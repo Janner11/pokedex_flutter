@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 // Represents a node in an evolution tree.
-// It can have its own list of subsequent evolutions (branches).
+// It can ha// It can have its own list of subsequent evolutions (branches).ve its own list of subsequent evolutions (branches).
 class EvolutionNode {
   final int id;
   final String name;
@@ -71,12 +71,19 @@ class Pokemon {
     final String name = map['name'];
     final int generationId = map['pokemon_v2_pokemonspecy']?['generation_id'] ?? 1;
 
-    final List<String> types = (map['pokemon_v2_pokemontypes'] as List)
+    final List<String> types = (map['pokemon_v2_pokemontypes'] as List? ?? [])
         .map((t) => t['pokemon_v2_type']['name'] as String)
         .toList();
 
-    final spritesMap = _parseSprites(map['pokemon_v2_pokemonsprites'][0]['sprites']);
-    final imageUrl = spritesMap['other']?['official-artwork']?['front_default'] ?? spritesMap['front_default'] ?? '';
+    final spritesList = map['pokemon_v2_pokemonsprites'] as List?;
+    final spritesRaw = spritesList != null && spritesList.isNotEmpty ? spritesList[0]['sprites'] : null;
+    final spritesMap = _parseSprites(spritesRaw);
+    
+    // --- FIX: Add multiple fallbacks for the image URL ---
+    final imageUrl = spritesMap['other']?['official-artwork']?['front_default'] 
+                  ?? spritesMap['other']?['home']?['front_default']
+                  ?? spritesMap['front_default'] 
+                  ?? '';
 
     final Map<String, int> stats = {};
     if (map.containsKey('pokemon_v2_pokemonstats')) {
@@ -106,7 +113,11 @@ class Pokemon {
         final spritesList = species['pokemon_v2_pokemons']?.first?['pokemon_v2_pokemonsprites'] as List?;
         final evoSpritesRaw = spritesList?.first?['sprites'];
         final evoSpritesMap = evoSpritesRaw != null ? _parseSprites(evoSpritesRaw) : {};
-        final evoImageUrl = evoSpritesMap['other']?['official-artwork']?['front_default'] ?? evoSpritesMap['front_default'] ?? '';
+        
+        final evoImageUrl = evoSpritesMap['other']?['official-artwork']?['front_default'] 
+                           ?? evoSpritesMap['other']?['home']?['front_default']
+                           ?? evoSpritesMap['front_default'] 
+                           ?? '';
         
         final evoDetails = species['pokemon_v2_pokemonevolutions'] as List;
         if (evoDetails.isNotEmpty) {

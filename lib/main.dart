@@ -8,6 +8,9 @@ import 'features/pokemon/presentation/favorites/favorites_screen.dart';
 import 'features/pokemon/presentation/list/pokemon_list_screen.dart';
 import 'features/pokemon/presentation/detail/pokemon_detail_screen.dart';
 import 'features/pokemon/presentation/shell/shell.dart';
+import 'features/trivia/presentation/screens/achievements_screen.dart';
+import 'features/trivia/presentation/screens/ranking_screen.dart';
+import 'features/trivia/presentation/screens/trivia_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,14 +32,20 @@ class App extends StatelessWidget {
       navigatorKey: _rootNavigatorKey,
       initialLocation: '/',
       routes: [
-        // Detail screen is now a top-level route
         GoRoute(
           path: '/pokemon/:id',
           builder: (context, state) => PokemonDetailScreen(
             id: state.pathParameters['id']!,
           ),
         ),
-        // Shell route for tabs
+        GoRoute(
+          path: '/trivia/ranking',
+          builder: (context, state) => const RankingScreen(),
+        ),
+        GoRoute(
+          path: '/trivia/achievements',
+          builder: (context, state) => const AchievementsScreen(),
+        ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
             return Shell(child: navigationShell);
@@ -55,6 +64,14 @@ class App extends StatelessWidget {
                 GoRoute(
                   path: '/favorites',
                   builder: (context, state) => const FavoritesScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/trivia',
+                  builder: (context, state) => const TriviaScreen(),
                 ),
               ],
             ),

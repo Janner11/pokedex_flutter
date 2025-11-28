@@ -22,6 +22,11 @@ class Shell extends StatelessWidget {
             activeIcon: Icon(Icons.favorite_rounded),
             label: 'Favoritos',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.psychology_alt_outlined),
+            activeIcon: Icon(Icons.psychology_alt),
+            label: 'Trivia',
+          ),
         ],
       ),
     );
@@ -32,6 +37,9 @@ class Shell extends StatelessWidget {
     if (location.startsWith('/favorites')) {
       return 1;
     }
+    if (location.startsWith('/trivia')) {
+      return 2;
+    }
     return 0;
   }
 
@@ -39,6 +47,9 @@ class Shell extends StatelessWidget {
     switch (index) {
       case 1:
         context.go('/favorites');
+        break;
+      case 2:
+        context.go('/trivia');
         break;
       case 0:
       default:
