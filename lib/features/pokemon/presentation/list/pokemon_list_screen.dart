@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../../main.dart'; // 🔹 Importar para acceder a themeProvider
 import '../../data/favorites_repository.dart';
 import '../../domain/models/pokemon.dart';
 import '../../../pokemon/data/type_colors.dart';
@@ -51,7 +52,7 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
   String _searchTerm = '';
   Timer? _debounce;
   Box? _cacheBox;
-  bool _isCaching = false; // State to show caching indicator
+  bool _isCaching = false;
 
   // Filter and sort state
   String? _selectedType;
@@ -91,7 +92,6 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
   Future<void> _cacheImagesAndSave(List<dynamic> rawList) async {
     if (_cacheBox == null) return;
     
-    // Update UI to show we are saving
     if (mounted) setState(() => _isCaching = true);
 
     final List<Map<String, dynamic>> processedList = [];
@@ -100,13 +100,11 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
     for (var item in rawList) {
       final mapItem = Map<String, dynamic>.from(item);
       
-      // Check if image already cached
       if (mapItem['imageBase64'] != null) {
         processedList.add(mapItem);
         continue;
       }
 
-      // Extract image URL using the same logic as model
       String imageUrl = '';
       try {
         dynamic spritesField = mapItem['pokemon_v2_pokemonsprites'][0]['sprites'];
@@ -131,16 +129,14 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
             mapItem['imageBase64'] = base64Image;
           }
         } catch (e) {
-          // Failed to download image, skip caching it
+          // Failed to download image
         }
       }
       processedList.add(mapItem);
     }
 
-    // Save the list WITH base64 images to Hive
     await _cacheBox!.put('last_list', processedList);
     
-    // Hide indicator
     if (mounted) setState(() => _isCaching = false);
   }
   // -------------------------------
@@ -212,7 +208,18 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
       appBar: PokedexAppBar(
         title: "Pokédex",
         actions: [
-          // Show a small saving indicator
+          // 🔹 BOTÓN DE MODO OSCURO
+          ListenableBuilder(
+            listenable: themeProvider,
+            builder: (context, _) {
+              return IconButton(
+                icon: Icon(themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+                onPressed: () => themeProvider.toggleTheme(),
+                tooltip: "Cambiar tema",
+              );
+            },
+          ),
+          // -----------------------
           if (_isCaching)
             const Padding(
               padding: EdgeInsets.only(right: 16.0),
@@ -257,7 +264,6 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
                 bool isOfflineMode = false;
 
                 if (result.hasException) {
-                  // OFFLINE: Load from Hive
                   if (_cacheBox != null && _cacheBox!.containsKey('last_list')) {
                     try {
                       final cachedData = _cacheBox!.get('last_list');
@@ -276,13 +282,10 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
                 } else if (result.isLoading && result.data == null) {
                    return const Center(child: CircularProgressIndicator());
                 } else {
-                  // ONLINE: Process and Cache
                   final pokemonListRaw = result.data?['pokemon_v2_pokemon'] as List? ?? [];
                   pokemonList = pokemonListRaw.map((p) => Pokemon.fromMap(p)).toList();
                   
-                  // Background image caching
                   if (_cacheBox != null && pokemonListRaw.isNotEmpty && !_isCaching) {
-                    // Trigger caching
                     Future.microtask(() => _cacheImagesAndSave(pokemonListRaw));
                   }
                 }
@@ -305,7 +308,6 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
                           ];
                           fetchMoreResultData['pokemon_v2_pokemon'] = repos;
                           
-                          // Cache new items
                           final newItems = fetchMoreResultData!['pokemon_v2_pokemon'] as List<dynamic>;
                           if (!_isCaching) {
                              Future.microtask(() => _cacheImagesAndSave(newItems));
@@ -411,6 +413,8 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
                                                   p.name[0].toUpperCase() + p.name.substring(1),
                                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                                     fontWeight: FontWeight.w800,
+                                                    // Adapt text color for dark mode if needed, 
+                                                    // but card has custom gradient background so grey[800] is usually fine.
                                                     color: Colors.grey[800],
                                                     fontSize: 16,
                                                   ),
@@ -432,7 +436,6 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
                                             tag: "pkm-${p.id}",
                                             child: Align(
                                               alignment: Alignment.bottomRight,
-                                              // --- HYBRID IMAGE WIDGET ---
                                               child: p.imageBase64 != null
                                                   ? Image.memory(
                                                       base64Decode(p.imageBase64!),

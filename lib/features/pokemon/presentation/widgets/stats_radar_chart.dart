@@ -16,6 +16,11 @@ class StatsRadarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final statValues = _statOrder.map((key) => stats[key]?.toDouble() ?? 0.0).toList();
+    
+    // 🔹 ADAPTABLE GRID COLORS
+    // Use onSurface with opacity so it works on both light (black lines) and dark (white lines) backgrounds
+    final gridColor = theme.colorScheme.onSurface.withOpacity(0.2);
+    final textColor = theme.colorScheme.onSurface.withOpacity(0.8);
 
     return AspectRatio(
       aspectRatio: 1.2,
@@ -23,15 +28,15 @@ class StatsRadarChart extends StatelessWidget {
         RadarChartData(
           titleTextStyle: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
+            color: textColor, // 🔹 Adaptable text color
           ),
 
           tickCount: 5,
           ticksTextStyle: const TextStyle(color: Colors.transparent, fontSize: 10),
 
-          tickBorderData: const BorderSide(color: Colors.black12, width: 1),
+          tickBorderData: BorderSide(color: gridColor, width: 1), // 🔹 Adaptable
 
-          gridBorderData: const BorderSide(color: Colors.black26, width: 1.5),
+          gridBorderData: BorderSide(color: gridColor, width: 1.5), // 🔹 Adaptable
 
           getTitle: (index, angle) {
             return RadarChartTitle(

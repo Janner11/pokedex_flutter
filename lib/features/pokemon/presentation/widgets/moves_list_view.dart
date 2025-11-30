@@ -106,26 +106,18 @@ class _MovesListViewState extends State<MovesListView> {
       bool matchesVersionGroup = true;
 
       if (_selectedVersionGroup != null) {
-        // Special case: Tutor and Egg moves are often shared across games or sparse.
-        // If the user explicitly selects a game, we respect it.
-        // But typically for Tutor/Egg we might want to show all.
-        // However, to keep the UI consistent with the dropdown, we filter by the selected game IF it's level-up/machine.
-        // For Tutor/Egg, let's allow seeing all if the user hasn't picked a specific game, OR if they have, show only that game's.
-        // BUT, your requirement was "show egg/tutor moves". Often these are missing in specific games.
-        // Let's relax the filter for Tutor/Egg: if selected game has no tutor moves, maybe show others?
-        // For simplicity and strictness: we filter by selected version group.
-        // IF you want to see ALL tutor moves, maybe we should have an "All Games" option?
-        // For now, I will stick to: Filter by selected game. This is consistent.
-        // CAUTION: If Solrock has no moves in Scarlet-Violet, and that is selected, list is empty.
-        // The user must change the dropdown to Ruby-Sapphire to see them.
-        // My previous logic auto-selected the correct game.
-        
         matchesVersionGroup = m.versionGroup == _selectedVersionGroup;
+      } else {
+        if (_selectedFilter == 'level-up' || _selectedFilter == 'machine') {
+          final defaultVersionGroup = _generationVersionGroup[widget.generationId];
+          if (defaultVersionGroup != null) {
+            matchesVersionGroup = m.versionGroup == defaultVersionGroup;
+          }
+        }
       }
       return matchesLearnMethod && matchesVersionGroup;
     }).toList();
 
-    // Remove duplicates by name (if same move appears multiple times in same game/method - rare but possible)
     final uniqueMoves = <String, Move>{};
     for (var move in filteredMoves) {
       uniqueMoves[move.name] = move;
@@ -141,7 +133,6 @@ class _MovesListViewState extends State<MovesListView> {
 
     // --- PAGINATION LOGIC ---
     final totalPages = (filteredMoves.length / _pageSize).ceil();
-    // Safety check for current page
     if (_currentPage > totalPages && totalPages > 0) _currentPage = 1;
     if (totalPages == 0) _currentPage = 1;
 
@@ -165,23 +156,25 @@ class _MovesListViewState extends State<MovesListView> {
                   return FilterChip(
                     label: Text(entry.key),
                     selected: isSelected,
-                    backgroundColor: Colors.grey[200],
-                    labelStyle: TextStyle(color: Colors.grey[800]),
+                    // 🔹 ADAPTABLE COLORS
+                    backgroundColor: theme.colorScheme.surfaceVariant,
+                    labelStyle: TextStyle(
+                      color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant
+                    ),
                     selectedColor: theme.colorScheme.primary,
                     showCheckmark: false,
                     side: BorderSide(
-                      color: isSelected ? Colors.transparent : Colors.grey[400]!,
+                      color: isSelected ? Colors.transparent : theme.colorScheme.outline.withOpacity(0.5),
                     ),
                     onSelected: (selected) {
                       if (selected) {
                         _resetPage();
                         setState(() {
                           _selectedFilter = entry.value;
-                          // Reset sort to level if level-up is selected
                           if (_selectedFilter == 'level-up') {
                             _selectedSort = 'level';
                           } else {
-                            _selectedSort = 'name'; // Default to name for other filters
+                            _selectedSort = 'name'; 
                           }
                         });
                       }
@@ -193,7 +186,6 @@ class _MovesListViewState extends State<MovesListView> {
           ),
         ),
         const SizedBox(height: 12),
-        // Filters Row 2: Game and Sort
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -201,7 +193,9 @@ class _MovesListViewState extends State<MovesListView> {
               if (_availableVersionGroups.isNotEmpty) ...[
                 DropdownButton<String>(
                   value: _availableVersionGroups.contains(_selectedVersionGroup) ? _selectedVersionGroup : null,
-                  hint: const Text('Juego'),
+                  hint: Text('Juego', style: TextStyle(color: theme.colorScheme.onSurface)),
+                  dropdownColor: theme.colorScheme.surface,
+                  style: TextStyle(color: theme.colorScheme.onSurface),
                   onChanged: (String? newValue) {
                     _resetPage();
                     setState(() {
@@ -219,6 +213,8 @@ class _MovesListViewState extends State<MovesListView> {
               ],
               DropdownButton<String>(
                 value: _selectedSort,
+                dropdownColor: theme.colorScheme.surface,
+                style: TextStyle(color: theme.colorScheme.onSurface),
                 onChanged: (String? newValue) {
                   if (newValue != null) {
                     _resetPage();
@@ -228,7 +224,6 @@ class _MovesListViewState extends State<MovesListView> {
                   }
                 },
                 items: _sortOptions.entries.map<DropdownMenuItem<String>>((entry) {
-                  // Disable 'Nivel' sort if not 'level-up' filter
                   final bool isLevelSortDisabled = entry.value == 'level' && _selectedFilter != 'level-up';
                   return DropdownMenuItem<String>(
                     value: entry.value,
@@ -236,7 +231,7 @@ class _MovesListViewState extends State<MovesListView> {
                     child: Text(
                       entry.key,
                       style: TextStyle(
-                        color: isLevelSortDisabled ? Colors.grey : null,
+                        color: isLevelSortDisabled ? theme.disabledColor : theme.colorScheme.onSurface,
                       ),
                     ),
                   );
@@ -261,7 +256,7 @@ class _MovesListViewState extends State<MovesListView> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: paginatedMoves.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
+                separatorBuilder: (context, index) => Divider(height: 1, color: theme.colorScheme.outlineVariant),
                 itemBuilder: (context, index) {
                   final move = paginatedMoves[index];
                   return ListTile(
@@ -333,16 +328,19 @@ class _StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: theme.colorScheme.surfaceVariant, // 🔹 Adaptable BG
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
           Text(
             '$label ',
-            style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.bold, 
+              color: theme.colorScheme.onSurfaceVariant // 🔹 Adaptable Text
+            ),
           ),
-          Text(value, style: theme.textTheme.bodySmall),
+          Text(value, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface)),
         ],
       ),
     );

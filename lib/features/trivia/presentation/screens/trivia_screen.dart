@@ -9,7 +9,7 @@ import '../../../pokemon/domain/models/pokemon.dart';
 import '../../data/achievements_repository.dart';
 import '../../data/ranking_repository.dart';
 import '../../domain/models/achievement.dart';
-import '../../../../l10n/app_localizations.dart'; // 🔹 Importar localizaciones
+import '../../../../l10n/app_localizations.dart';
 
 class TriviaScreen extends StatefulWidget {
   const TriviaScreen({super.key});
@@ -229,7 +229,6 @@ class _TriviaScreenState extends State<TriviaScreen> {
             children: [
               const Icon(Icons.emoji_events, color: Colors.white),
               const SizedBox(width: 8),
-              // 🔹 LOCALIZADO: Usamos l10n para el mensaje
               Expanded(child: Text('${AppLocalizations.of(context).achievementUnlocked} ${achievement.name}')),
             ],
           ),
@@ -255,7 +254,7 @@ class _TriviaScreenState extends State<TriviaScreen> {
                 Text('${l10n.finalScore}: $_score', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 if (_correctPokemon != null)
-                   Text('Era: ${_correctPokemon!.name.toUpperCase()}', style: const TextStyle(color: Colors.grey)),
+                   Text('Era: ${_correctPokemon!.name.toUpperCase()}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: nameController,
@@ -335,7 +334,7 @@ class _TriviaScreenState extends State<TriviaScreen> {
                         const Icon(Icons.error_outline, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
                         Text(
-                          _errorMessage!, // Technical errors can remain in English or be mapped if specific
+                          _errorMessage!,
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 16),
                         ),
@@ -361,6 +360,7 @@ class _TriviaScreenState extends State<TriviaScreen> {
   }
 
   Widget _buildStartScreen(AppLocalizations l10n) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -377,14 +377,13 @@ class _TriviaScreenState extends State<TriviaScreen> {
             const SizedBox(height: 16),
             Text(
               l10n.guessInstruction,
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: theme.colorScheme.onBackground.withOpacity(0.7)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 48),
             SizedBox(
               width: double.infinity,
               height: 56,
-              // 🔹 SEMANTICS: Botón de inicio
               child: Semantics(
                 button: true,
                 label: "Start the trivia game",
@@ -407,6 +406,8 @@ class _TriviaScreenState extends State<TriviaScreen> {
   }
 
   Widget _buildGameUI(AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    
     if (_correctPokemon == null) return const SizedBox.shrink();
 
     Widget imageWidget;
@@ -430,25 +431,26 @@ class _TriviaScreenState extends State<TriviaScreen> {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          // Header Stats
+          // Header Stats with Adaptive Colors
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: theme.colorScheme.surfaceVariant.withOpacity(0.3), // 🔹 Adaptable
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 Column(
                   children: [
-                    Text(l10n.score, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                    Text("$_score", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(l10n.score, style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
+                    Text("$_score", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                   ],
                 ),
                 Column(
                   children: [
-                    Text(l10n.streak, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text(l10n.streak, style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
                     Text("$_streak", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange)),
                   ],
                 ),
@@ -457,10 +459,10 @@ class _TriviaScreenState extends State<TriviaScreen> {
                   children: [
                     CircularProgressIndicator(
                       value: _timeLeft / 10,
-                      backgroundColor: Colors.grey[300],
+                      backgroundColor: theme.colorScheme.surfaceVariant,
                       color: _timeLeft <= 3 ? Colors.red : Colors.green,
                     ),
-                    Text("$_timeLeft", style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text("$_timeLeft", style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                   ],
                 ),
               ],
@@ -476,8 +478,9 @@ class _TriviaScreenState extends State<TriviaScreen> {
             child: _isRevealed
                 ? imageWidget 
                 : ColorFiltered(
-                    colorFilter: const ColorFilter.mode(
-                      Colors.black, 
+                    colorFilter: ColorFilter.mode(
+                      theme.brightness == Brightness.dark ? Colors.white : Colors.black, // White silhouette in dark mode looks better? Or keep black? 
+                      // Convention is black silhouette usually. Let's keep black for mystery feel, but ensure background allows seeing it.
                       BlendMode.srcIn,
                     ),
                     child: imageWidget,
@@ -501,6 +504,8 @@ class _TriviaScreenState extends State<TriviaScreen> {
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
+                    backgroundColor: theme.colorScheme.surfaceVariant, // Adaptable button bg
+                    foregroundColor: theme.colorScheme.onSurface, // Adaptable text
                   ),
                   onPressed: _isRevealed ? null : () => _handleAnswer(pokemon),
                   child: Text(

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Tema global Material 3
-ThemeData appTheme() {
-  const pokedexRed = Color(0xFFE3350D);
-  const accentBlue = Color(0xFF6493EB);
+const pokedexRed = Color(0xFFE3350D);
+const accentBlue = Color(0xFF6493EB);
+
+/// Tema Claro
+ThemeData appThemeLight() {
   const backgroundWhite = Color(0xFFF8F9FA);
 
   final base = ThemeData(
@@ -15,26 +16,55 @@ ThemeData appTheme() {
       secondary: accentBlue,
       brightness: Brightness.light,
       background: backgroundWhite,
+      surface: Colors.white,
     ),
-    textTheme: GoogleFonts.robotoFlexTextTheme().copyWith(
-      titleLarge: GoogleFonts.robotoFlex(fontWeight: FontWeight.w800),
-      titleMedium: GoogleFonts.robotoFlex(fontWeight: FontWeight.w700),
-      bodyMedium: GoogleFonts.robotoFlex(fontWeight: FontWeight.w500),
-    ),
+    textTheme: GoogleFonts.robotoFlexTextTheme(),
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );
 
+  return _buildTheme(base, isDark: false);
+}
+
+/// Tema Oscuro
+ThemeData appThemeDark() {
+  const backgroundDark = Color(0xFF121212);
+  const surfaceDark = Color(0xFF1E1E1E);
+
+  final base = ThemeData(
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: pokedexRed,
+      primary: pokedexRed,
+      secondary: accentBlue,
+      brightness: Brightness.dark,
+      background: backgroundDark,
+      surface: surfaceDark,
+    ),
+    textTheme: GoogleFonts.robotoFlexTextTheme(ThemeData.dark().textTheme),
+    visualDensity: VisualDensity.adaptivePlatformDensity,
+  );
+
+  return _buildTheme(base, isDark: true);
+}
+
+/// Función auxiliar para aplicar estilos comunes
+ThemeData _buildTheme(ThemeData base, {required bool isDark}) {
   return base.copyWith(
     appBarTheme: base.appBarTheme.copyWith(
       backgroundColor: pokedexRed,
-      foregroundColor: Colors.white,
+      // En modo oscuro, texto negro. En claro, blanco.
+      foregroundColor: isDark ? Colors.black : Colors.white,
       centerTitle: true,
       elevation: 4,
       shadowColor: Colors.black.withOpacity(.3),
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
+        color: isDark ? Colors.black : Colors.white,
         fontSize: 18,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.5,
+      ),
+      iconTheme: IconThemeData(
+        color: isDark ? Colors.black : Colors.white,
       ),
     ),
     cardTheme: base.cardTheme.copyWith(

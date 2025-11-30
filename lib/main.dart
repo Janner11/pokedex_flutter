@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // 🔹 Importar
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/graphql_client.dart';
 import 'core/theming.dart';
+import 'core/theme_provider.dart'; // 🔹 Importar ThemeProvider
 import 'features/pokemon/presentation/favorites/favorites_screen.dart';
 import 'features/pokemon/presentation/list/pokemon_list_screen.dart';
 import 'features/pokemon/presentation/detail/pokemon_detail_screen.dart';
@@ -13,7 +14,7 @@ import 'features/trivia/presentation/screens/trivia_screen.dart';
 import 'features/pokemon/presentation/map/pokemon_map_screen.dart';
 import 'features/trivia/presentation/screens/ranking_screen.dart';
 import 'features/trivia/presentation/screens/achievements_screen.dart';
-import 'l10n/app_localizations.dart'; // 🔹 Importar nuestro sistema de localización
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,11 +23,14 @@ void main() async {
   await Hive.openBox<Map>('favorite_details');
   await Hive.openBox<Map>('trivia_scores');
   await Hive.openBox<bool>('trivia_achievements');
+  await Hive.openBox('settings'); // 🔹 Caja para configuración (tema)
   
   runApp(const App());
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
+// 🔹 Instancia global del ThemeProvider (simple y efectiva)
+final themeProvider = ThemeProvider();
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -104,29 +108,37 @@ class App extends StatelessWidget {
 
     return GraphQLProvider(
       client: client,
-      child: MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        theme: appTheme(),
-        routerConfig: router,
-        // 🔹 CONFIGURACIÓN DE LOCALIZACIÓN
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en', ''), // Inglés
-          Locale('es', ''), // Español
-        ],
-        // -------------------------------
-        builder: (context, child) {
-          return ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              scrollbars: false,
-              overscroll: false,
-            ),
-            child: child!,
+      // 🔹 Escuchar cambios en el tema
+      child: ListenableBuilder(
+        listenable: themeProvider,
+        builder: (context, _) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            // 🔹 Temas dinámicos
+            theme: appThemeLight(),
+            darkTheme: appThemeDark(),
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            // ------------------
+            routerConfig: router,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en', ''),
+              Locale('es', ''),
+            ],
+            builder: (context, child) {
+              return ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  scrollbars: false,
+                  overscroll: false,
+                ),
+                child: child!,
+              );
+            },
           );
         },
       ),

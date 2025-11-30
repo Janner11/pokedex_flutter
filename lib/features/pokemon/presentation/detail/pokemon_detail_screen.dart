@@ -1,11 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:screenshot/screenshot.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../data/favorites_repository.dart';
 import '../../domain/models/pokemon.dart';
 import '../../../pokemon/data/type_colors.dart';
@@ -123,29 +119,15 @@ class PokemonDetailScreen extends StatefulWidget {
 
 class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
   final _favoritesRepo = FavoritesRepository();
-  final ScreenshotController _screenshotController = ScreenshotController();
   bool _showShiny = false;
-
-  // Method to capture and share the Pokemon Card
-  Future<void> _sharePokemonCard(String pokemonName) async {
-    try {
-      final image = await _screenshotController.capture();
-      if (image != null) {
-        final directory = await getTemporaryDirectory();
-        final imagePath = await File('${directory.path}/$pokemonName.png').create();
-        await imagePath.writeAsBytes(image);
-
-        await Share.shareXFiles([XFile(imagePath.path)], text: '¡Mira este $pokemonName en mi Pokédex!');
-      }
-    } catch (e) {
-      // Handle error silently or show toast
-      debugPrint('Error sharing: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final pid = int.tryParse(widget.id);
+    final theme = Theme.of(context);
+    // Color de superficie sutil para contenedores (adaptable a modo oscuro)
+    final surfaceColor = theme.colorScheme.surfaceVariant.withOpacity(0.3);
+    final borderColor = theme.colorScheme.outline.withOpacity(0.2);
 
     return Query(
         options: QueryOptions(
@@ -196,13 +178,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
             appBar: PokedexAppBar(
               title: "${pokemon.name[0].toUpperCase()}${pokemon.name.substring(1)}  #${pokemon.id.toString().padLeft(4, '0')}",
               actions: [
-                // --- SHARE BUTTON ---
-                IconButton(
-                  icon: const Icon(Icons.share),
-                  onPressed: () => _sharePokemonCard(pokemon.name),
-                  tooltip: 'Compartir',
-                ),
-                // --------------------
                 IconButton(
                   icon: const Icon(Icons.map),
                   onPressed: () {
@@ -230,78 +205,53 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // --- WRAP HEADER IN SCREENSHOT WIDGET ---
-                    Screenshot(
-                      controller: _screenshotController,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                        decoration: BoxDecoration(
-                          gradient: headerGrad,
-                          // Ensure background is white/opaque for screenshot, otherwise it might be transparent
-                          color: Theme.of(context).colorScheme.background, 
-                        ),
-                        child: Column(
-                          children: [
-                            // Add Pokemon Name and ID for the shared card context
-                            // Only visible in screenshot? No, let's just capture the nice visual header
-                            // But header doesn't have name. Let's add name to header ONLY for screenshot?
-                            // Or just capture what we have.
-                            // To make a nice card, let's include the Name at the top of this container if we want.
-                            // But wait, name is in AppBar. Screenshot only captures child.
-                            // Let's add the Name/ID inside this container too, but only render it if we want.
-                            // Simpler: Capture the header as is. It has the image and types.
-                            // Even better: Wrap a specific "Card" widget that includes Name + Image + Types.
-                            
-                            const SizedBox(height: 10),
-                            Stack(
-                              alignment: Alignment.topRight,
-                              children: [
-                                Hero(
-                                  tag: "pkm-${pokemon.id}",
-                                  child: Container(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Image.network(
-                                      displayImage,
-                                      height: 200,
-                                      fit: BoxFit.contain,
-                                      filterQuality: FilterQuality.medium,
-                                    ),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                      decoration: BoxDecoration(gradient: headerGrad),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 10),
+                          Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              Hero(
+                                tag: "pkm-${pokemon.id}",
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Image.network(
+                                    displayImage,
+                                    height: 200,
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.medium,
                                   ),
                                 ),
-                                if (pokemon.shinyImageUrl.isNotEmpty)
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.auto_awesome,
-                                      color: _showShiny ? Colors.amber : Colors.grey.withOpacity(0.5),
-                                      size: 30,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _showShiny = !_showShiny;
-                                      });
-                                    },
-                                    tooltip: "Ver Shiny",
+                              ),
+                              if (pokemon.shinyImageUrl.isNotEmpty)
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.auto_awesome,
+                                    color: _showShiny ? Colors.amber : Colors.grey.withOpacity(0.5),
+                                    size: 30,
                                   ),
-                              ],
-                            ),
-                            // Add Name for context in the image
-                            Text(
-                              pokemon.name[0].toUpperCase() + pokemon.name.substring(1),
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              children: pokemon.types.map((t) => TypeChip(type: t)).toList(),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showShiny = !_showShiny;
+                                    });
+                                  },
+                                  tooltip: "Ver Shiny",
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 8,
+                            children: pokemon.types.map((t) => TypeChip(type: t)).toList(),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                       ),
                     ),
-                    // ----------------------------------------
-                    
                     Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -314,20 +264,24 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.grey[100],
+                                color: surfaceColor, // 🔹 COLOR ADAPTABLE
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey[300]!),
+                                border: Border.all(color: borderColor),
                               ),
                               child: DropdownButtonHideUnderline(
                                 child: DropdownButton<int>(
                                   isExpanded: true,
                                   value: pokemon.id,
+                                  dropdownColor: theme.colorScheme.surface, // Fondo del menú desplegable
                                   items: pokemon.variants.map((variant) {
                                     return DropdownMenuItem<int>(
                                       value: variant.id,
                                       child: Text(
                                         variant.name.replaceAll('-', ' ').capitalize(),
-                                        style: const TextStyle(fontWeight: FontWeight.w500),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          color: theme.colorScheme.onSurface, // Texto adaptable
+                                        ),
                                       ),
                                     );
                                   }).toList(),
@@ -345,24 +299,35 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                           if (pokemon.description.isNotEmpty) ...[
                             Text(
                               pokemon.description,
-                              style: const TextStyle(fontSize: 15, height: 1.4, color: Colors.black87),
+                              style: TextStyle(
+                                fontSize: 15, 
+                                height: 1.4, 
+                                color: theme.colorScheme.onBackground.withOpacity(0.8), // Texto adaptable
+                              ),
                               textAlign: TextAlign.justify,
                             ),
                             const SizedBox(height: 20),
                           ],
-                          _buildInfoRow(pokemon),
+                          
+                          // 🔹 FILA INFO (Altura, Peso...)
+                          _buildInfoRow(pokemon, surfaceColor),
+                          
                           if (pokemon.eggGroups.isNotEmpty) ...[
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                const Text("Grupos Huevo: ", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                                Text("Grupos Huevo: ", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                                 ...pokemon.eggGroups.map((g) => Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
                                   child: Chip(
                                     label: Text(g.capitalize()),
                                     visualDensity: VisualDensity.compact,
-                                    backgroundColor: Colors.grey[200],
-                                    labelStyle: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[800]), 
+                                    backgroundColor: surfaceColor, // 🔹 Fondo adaptable
+                                    side: BorderSide(color: borderColor),
+                                    labelStyle: TextStyle(
+                                      fontWeight: FontWeight.w600, 
+                                      color: theme.colorScheme.onSurface, // Texto adaptable
+                                    ), 
                                   ),
                                 )),
                               ],
@@ -378,9 +343,9 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.grey[50],
+                                color: surfaceColor, // 🔹 Fondo adaptable
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey[200]!),
+                                border: Border.all(color: borderColor),
                               ),
                               child: Column(
                                 children: [
@@ -388,13 +353,13 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                     padding: const EdgeInsets.only(bottom: 8.0),
                                     child: Row(
                                       children: [
-                                        SizedBox(width: 40, child: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                                        Text("${e.value}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        SizedBox(width: 40, child: Text(e.key, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                                        Text("${e.value}", style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: LinearProgressIndicator(
                                             value: e.value / 255.0,
-                                            backgroundColor: Colors.grey[200],
+                                            backgroundColor: theme.colorScheme.surfaceVariant, // Fondo de barra adaptable
                                             color: _getStatColor(e.key, base),
                                             minHeight: 6,
                                             borderRadius: BorderRadius.circular(3),
@@ -403,12 +368,12 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                       ],
                                     ),
                                   )),
-                                  const Divider(),
+                                  Divider(color: borderColor),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text("TOTAL", style: TextStyle(fontWeight: FontWeight.w900)),
-                                      Text("$totalStats", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                                      Text("TOTAL", style: TextStyle(fontWeight: FontWeight.w900, color: theme.colorScheme.onSurface)),
+                                      Text("$totalStats", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: theme.colorScheme.onSurface)),
                                     ],
                                   ),
                                 ],
@@ -428,9 +393,9 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: pokemon.abilities.map((a) => Card(
                               elevation: 0,
-                              color: Colors.grey[50],
+                              color: surfaceColor, // 🔹 Fondo adaptable
                               shape: RoundedRectangleBorder(
-                                side: BorderSide(color: Colors.grey[200]!),
+                                side: BorderSide(color: borderColor),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               margin: const EdgeInsets.only(bottom: 8),
@@ -443,19 +408,27 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                       children: [
                                         Text(
                                           a.name.replaceAll('-', ' ').capitalize(),
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold, 
+                                            fontSize: 15,
+                                            color: theme.colorScheme.onSurface, // Texto adaptable
+                                          ),
                                         ),
                                         if (a.isHidden) ...[
                                           const SizedBox(width: 8),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: Colors.grey[300],
+                                              color: theme.colorScheme.secondaryContainer, // Color sutil
                                               borderRadius: BorderRadius.circular(4),
                                             ),
-                                            child: const Text(
+                                            child: Text(
                                               "Oculta",
-                                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                              style: TextStyle(
+                                                fontSize: 10, 
+                                                fontWeight: FontWeight.bold,
+                                                color: theme.colorScheme.onSecondaryContainer, // Texto contrastado
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -465,7 +438,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         a.description,
-                                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                                        style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant), // Texto secundario
                                       ),
                                     ]
                                   ],
@@ -507,11 +480,11 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     }
   }
 
-  Widget _buildInfoRow(Pokemon pokemon) {
+  Widget _buildInfoRow(Pokemon pokemon, Color bgColor) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: bgColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -580,6 +553,7 @@ class _InfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Icon(icon, color: iconColor ?? Colors.grey[600], size: 24),
@@ -591,7 +565,7 @@ class _InfoItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface),
         ),
       ],
     );
@@ -604,21 +578,22 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            color: theme.colorScheme.primary.withOpacity(0.2),
             width: 2,
           ),
         ),
       ),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        style: theme.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w800,
-          color: Colors.grey[800],
+          color: theme.colorScheme.onBackground.withOpacity(0.8), // Adaptable
         ),
       ),
     );

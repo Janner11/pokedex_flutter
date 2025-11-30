@@ -27,6 +27,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Logros'),
@@ -47,13 +48,15 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
               achievement.name,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isUnlocked ? Colors.black : Colors.grey,
+                // 🔹 Color adaptable: si desbloqueado, usa color del tema; si no, gris
+                color: isUnlocked ? theme.colorScheme.onBackground : Colors.grey,
               ),
             ),
             subtitle: Text(
               achievement.description,
               style: TextStyle(
-                color: isUnlocked ? Colors.black87 : Colors.grey,
+                // 🔹 Color adaptable con opacidad
+                color: isUnlocked ? theme.colorScheme.onBackground.withOpacity(0.7) : Colors.grey,
               ),
             ),
           );
