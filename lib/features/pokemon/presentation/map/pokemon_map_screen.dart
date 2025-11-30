@@ -49,23 +49,29 @@ class PokemonMapScreen extends StatelessWidget {
       ),
       body: FlutterMap(
         options: MapOptions(
-          initialCenter: regionLatLng ?? LatLng(-45, 135), // Centrar en la región o en un punto por defecto
+          initialCenter: regionLatLng ?? LatLng(-45, 135),
           initialZoom: 3.0,
           cameraConstraint: CameraConstraint.contain(
             bounds: LatLngBounds(
-              LatLng(-90, 0), // esquina inferior izquierda
-              LatLng(0, 180), // esquina superior derecha
+              LatLng(-90, 0),
+              LatLng(0, 180),
             ),
           ),
+
+          // 🔥 LO QUE AÑADÍ PARA CALIBRAR
+          onTap: (tapPosition, point) {
+            print("TAP → LAT: ${point.latitude}, LNG: ${point.longitude}");
+          },
         ),
+
         children: [
           // Cargar el mapa Pokémon como una sola imagen
           OverlayImageLayer(
             overlayImages: [
               OverlayImage(
                 bounds: LatLngBounds(
-                  LatLng(-90, 0), // Inferior izquierda
-                  LatLng(0, 180), // Superior derecha
+                  LatLng(-90, 0),
+                  LatLng(0, 180),
                 ),
                 opacity: 1.0,
                 imageProvider: const AssetImage("assets/images/world_map.png"),
