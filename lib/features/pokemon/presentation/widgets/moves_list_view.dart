@@ -55,6 +55,15 @@ class _MovesListViewState extends State<MovesListView> {
     _populateVersionGroups();
   }
 
+  // Re-run when moves change (e.g. when data loads from network)
+  @override
+  void didUpdateWidget(MovesListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.moves != oldWidget.moves) {
+      _populateVersionGroups();
+    }
+  }
+
   void _populateVersionGroups() {
     final allVersionGroups = widget.moves
         .map((m) => m.versionGroup)
@@ -65,9 +74,19 @@ class _MovesListViewState extends State<MovesListView> {
 
     setState(() {
       _availableVersionGroups = allVersionGroups;
-      // Set a default selected version group based on generation, or the first available
-      _selectedVersionGroup = _generationVersionGroup[widget.generationId] ??
-          allVersionGroups.firstOrNull;
+      
+      // If we already have a selection and it's valid, keep it.
+      if (_selectedVersionGroup != null && _availableVersionGroups.contains(_selectedVersionGroup)) {
+        return;
+      }
+
+      // Otherwise set a default selected version group based on generation
+      final defaultForGen = _generationVersionGroup[widget.generationId];
+      if (defaultForGen != null && _availableVersionGroups.contains(defaultForGen)) {
+         _selectedVersionGroup = defaultForGen;
+      } else {
+         _selectedVersionGroup = allVersionGroups.firstOrNull;
+      }
     });
   }
 
@@ -87,22 +106,26 @@ class _MovesListViewState extends State<MovesListView> {
       bool matchesVersionGroup = true;
 
       if (_selectedVersionGroup != null) {
+        // Special case: Tutor and Egg moves are often shared across games or sparse.
+        // If the user explicitly selects a game, we respect it.
+        // But typically for Tutor/Egg we might want to show all.
+        // However, to keep the UI consistent with the dropdown, we filter by the selected game IF it's level-up/machine.
+        // For Tutor/Egg, let's allow seeing all if the user hasn't picked a specific game, OR if they have, show only that game's.
+        // BUT, your requirement was "show egg/tutor moves". Often these are missing in specific games.
+        // Let's relax the filter for Tutor/Egg: if selected game has no tutor moves, maybe show others?
+        // For simplicity and strictness: we filter by selected version group.
+        // IF you want to see ALL tutor moves, maybe we should have an "All Games" option?
+        // For now, I will stick to: Filter by selected game. This is consistent.
+        // CAUTION: If Solrock has no moves in Scarlet-Violet, and that is selected, list is empty.
+        // The user must change the dropdown to Ruby-Sapphire to see them.
+        // My previous logic auto-selected the correct game.
+        
         matchesVersionGroup = m.versionGroup == _selectedVersionGroup;
-      } else {
-        // If no specific version group is selected by the user,
-        // and it's a level-up/machine move, use the generation-based default.
-        if (_selectedFilter == 'level-up' || _selectedFilter == 'machine') {
-          final defaultVersionGroup = _generationVersionGroup[widget.generationId];
-          if (defaultVersionGroup != null) {
-            matchesVersionGroup = m.versionGroup == defaultVersionGroup;
-          }
-        }
-        // For tutor/egg moves, if no specific version group is selected, don't filter by version group.
       }
       return matchesLearnMethod && matchesVersionGroup;
     }).toList();
 
-    // Remove duplicates by name
+    // Remove duplicates by name (if same move appears multiple times in same game/method - rare but possible)
     final uniqueMoves = <String, Move>{};
     for (var move in filteredMoves) {
       uniqueMoves[move.name] = move;
@@ -118,6 +141,10 @@ class _MovesListViewState extends State<MovesListView> {
 
     // --- PAGINATION LOGIC ---
     final totalPages = (filteredMoves.length / _pageSize).ceil();
+    // Safety check for current page
+    if (_currentPage > totalPages && totalPages > 0) _currentPage = 1;
+    if (totalPages == 0) _currentPage = 1;
+
     final paginatedMoves = filteredMoves
         .skip((_currentPage - 1) * _pageSize)
         .take(_pageSize)
@@ -162,10 +189,18 @@ class _MovesListViewState extends State<MovesListView> {
                   );
                 }).toList(),
               ),
-              const SizedBox(width: 16),
-              if (_availableVersionGroups.isNotEmpty)
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Filters Row 2: Game and Sort
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              if (_availableVersionGroups.isNotEmpty) ...[
                 DropdownButton<String>(
-                  value: _selectedVersionGroup,
+                  value: _availableVersionGroups.contains(_selectedVersionGroup) ? _selectedVersionGroup : null,
                   hint: const Text('Juego'),
                   onChanged: (String? newValue) {
                     _resetPage();
@@ -180,7 +215,8 @@ class _MovesListViewState extends State<MovesListView> {
                     );
                   }).toList(),
                 ),
-              const SizedBox(width: 16),
+                const SizedBox(width: 16),
+              ],
               DropdownButton<String>(
                 value: _selectedSort,
                 onChanged: (String? newValue) {

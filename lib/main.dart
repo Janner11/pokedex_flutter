@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // 🔹 Importar
 import 'package:go_router/go_router.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -8,15 +9,20 @@ import 'features/pokemon/presentation/favorites/favorites_screen.dart';
 import 'features/pokemon/presentation/list/pokemon_list_screen.dart';
 import 'features/pokemon/presentation/detail/pokemon_detail_screen.dart';
 import 'features/pokemon/presentation/shell/shell.dart';
-import 'features/trivia/presentation/screens/achievements_screen.dart';
-import 'features/trivia/presentation/screens/ranking_screen.dart';
 import 'features/trivia/presentation/screens/trivia_screen.dart';
-import 'features/pokemon/presentation/map/pokemon_map_screen.dart'; // Importar la nueva pantalla del mapa
+import 'features/pokemon/presentation/map/pokemon_map_screen.dart';
+import 'features/trivia/presentation/screens/ranking_screen.dart';
+import 'features/trivia/presentation/screens/achievements_screen.dart';
+import 'l10n/app_localizations.dart'; // 🔹 Importar nuestro sistema de localización
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox<int>('favorites');
+  await Hive.openBox<Map>('favorite_details');
+  await Hive.openBox<Map>('trivia_scores');
+  await Hive.openBox<bool>('trivia_achievements');
+  
   runApp(const App());
 }
 
@@ -40,23 +46,11 @@ class App extends StatelessWidget {
           ),
         ),
         GoRoute(
-          path: PokemonMapScreen.route, // La ruta ahora es '/pokemon_map/:pokemonName/:pokemonId'
-          builder: (context, state) {
-            final pokemonName = state.pathParameters['pokemonName']!;
-            final pokemonId = int.parse(state.pathParameters['pokemonId']!);
-            return PokemonMapScreen(
-              pokemonName: pokemonName,
-              pokemonId: pokemonId,
-            );
-          },
-        ),
-        GoRoute(
-          path: '/trivia/ranking',
-          builder: (context, state) => const RankingScreen(),
-        ),
-        GoRoute(
-          path: '/trivia/achievements',
-          builder: (context, state) => const AchievementsScreen(),
+          path: '/pokemon_map/:name/:id',
+          builder: (context, state) => PokemonMapScreen(
+            pokemonName: state.pathParameters['name']!,
+            pokemonId: int.parse(state.pathParameters['id']!),
+          ),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
@@ -67,7 +61,10 @@ class App extends StatelessWidget {
               routes: [
                 GoRoute(
                   path: '/',
-                  builder: (context, state) => const PokemonListScreen(),
+                  builder: (context, state) {
+                    final refreshKey = state.uri.queryParameters['refresh'] ?? 'default';
+                    return PokemonListScreen(key: ValueKey(refreshKey));
+                  },
                 ),
               ],
             ),
@@ -84,6 +81,16 @@ class App extends StatelessWidget {
                 GoRoute(
                   path: '/trivia',
                   builder: (context, state) => const TriviaScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'ranking',
+                      builder: (context, state) => const RankingScreen(),
+                    ),
+                    GoRoute(
+                      path: 'achievements',
+                      builder: (context, state) => const AchievementsScreen(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -101,6 +108,18 @@ class App extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
         routerConfig: router,
+        // 🔹 CONFIGURACIÓN DE LOCALIZACIÓN
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en', ''), // Inglés
+          Locale('es', ''), // Español
+        ],
+        // -------------------------------
         builder: (context, child) {
           return ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(

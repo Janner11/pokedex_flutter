@@ -1,31 +1,29 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../domain/models/ranking_entry.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class RankingRepository {
-  static const _rankingKey = 'trivia_ranking';
-  static const _maxEntries = 10;
+  static const _boxName = 'trivia_scores';
 
-  Future<List<RankingEntry>> getRanking() async {
-    final prefs = await SharedPreferences.getInstance();
-    final rankingJson = prefs.getStringList(_rankingKey) ?? [];
-    return rankingJson
-        .map((e) => RankingEntry.fromJson(jsonDecode(e)))
-        .toList();
+  Box<Map> get _box => Hive.box<Map>(_boxName);
+
+  /// Guarda un nuevo puntaje.
+  Future<void> saveScore(String name, int score) async {
+    final entry = {
+      'name': name,
+      'score': score,
+      'date': DateTime.now().toIso8601String(),
+    };
+    // Usamos add para que se autogenere una key y no sobrescriba
+    await _box.add(entry);
   }
 
-  Future<void> saveScore(String playerName, int score) async {
-    final prefs = await SharedPreferences.getInstance();
-    final ranking = await getRanking();
-
-    ranking.add(RankingEntry(playerName: playerName, score: score));
-    ranking.sort((a, b) => b.score.compareTo(a.score));
-
-    final newRanking = ranking.take(_maxEntries).toList();
-
-    final rankingJson = newRanking
-        .map((e) => jsonEncode(e.toJson()))
-        .toList();
-    await prefs.setStringList(_rankingKey, rankingJson);
+  /// Obtiene los mejores 10 puntajes ordenados.
+  List<Map<String, dynamic>> getTopScores() {
+    final scores = _box.values.map((e) => Map<String, dynamic>.from(e)).toList();
+    
+    // Ordenar de mayor a menor
+    scores.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+    
+    // Retornar solo los top 10
+    return scores.take(10).toList();
   }
 }

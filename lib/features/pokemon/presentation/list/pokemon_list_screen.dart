@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -30,8 +34,7 @@ const getPokemonList = r"""
       }
     }
   }
-"""
-;
+""";
 
 const int _pokemonPageLimit = 30;
 
@@ -47,12 +50,25 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
   final _favoritesRepo = FavoritesRepository();
   String _searchTerm = '';
   Timer? _debounce;
+  Box? _cacheBox;
+  bool _isCaching = false; // State to show caching indicator
 
   // Filter and sort state
   String? _selectedType;
   int? _selectedGeneration;
   String _sortBy = 'id';
   bool _sortAscending = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _openCacheBox();
+  }
+
+  Future<void> _openCacheBox() async {
+    _cacheBox = await Hive.openBox('pokemon_list_cache');
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -70,6 +86,64 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
       });
     });
   }
+
+  // --- IMAGE PERSISTENCE LOGIC ---
+  Future<void> _cacheImagesAndSave(List<dynamic> rawList) async {
+    if (_cacheBox == null) return;
+    
+    // Update UI to show we are saving
+    if (mounted) setState(() => _isCaching = true);
+
+    final List<Map<String, dynamic>> processedList = [];
+    final httpClient = HttpClient();
+
+    for (var item in rawList) {
+      final mapItem = Map<String, dynamic>.from(item);
+      
+      // Check if image already cached
+      if (mapItem['imageBase64'] != null) {
+        processedList.add(mapItem);
+        continue;
+      }
+
+      // Extract image URL using the same logic as model
+      String imageUrl = '';
+      try {
+        dynamic spritesField = mapItem['pokemon_v2_pokemonsprites'][0]['sprites'];
+        Map<String, dynamic> spritesMap = {};
+        if (spritesField is String) {
+          spritesMap = jsonDecode(spritesField);
+        } else {
+          spritesMap = spritesField;
+        }
+        imageUrl = spritesMap['other']?['official-artwork']?['front_default'] ?? spritesMap['front_default'] ?? '';
+      } catch (e) {
+        // Ignore parsing errors
+      }
+
+      if (imageUrl.isNotEmpty) {
+        try {
+          final request = await httpClient.getUrl(Uri.parse(imageUrl));
+          final response = await request.close();
+          if (response.statusCode == 200) {
+            final bytes = await consolidateHttpClientResponseBytes(response);
+            final base64Image = base64Encode(bytes);
+            mapItem['imageBase64'] = base64Image;
+          }
+        } catch (e) {
+          // Failed to download image, skip caching it
+        }
+      }
+      processedList.add(mapItem);
+    }
+
+    // Save the list WITH base64 images to Hive
+    await _cacheBox!.put('last_list', processedList);
+    
+    // Hide indicator
+    if (mounted) setState(() => _isCaching = false);
+  }
+  // -------------------------------
 
   void _showFilterDialog() {
     showDialog(
@@ -96,7 +170,6 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Build the 'where' clause for the query
     final whereClauses = <Map<String, dynamic>>[];
     if (_searchTerm.isNotEmpty) {
       whereClauses.add({'name': {'_ilike': '%$_searchTerm%'}});
@@ -124,7 +197,6 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
             ? whereClauses.first
             : {'_and': whereClauses};
 
-    // Build the 'order_by' clause
     final orderBy = [
       {_sortBy: _sortAscending ? 'asc' : 'desc'}
     ];
@@ -140,6 +212,16 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
       appBar: PokedexAppBar(
         title: "Pokédex",
         actions: [
+          // Show a small saving indicator
+          if (_isCaching)
+            const Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: SizedBox(
+                width: 16, 
+                height: 16, 
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterDialog,
@@ -171,178 +253,244 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
                 fetchPolicy: FetchPolicy.cacheAndNetwork, 
               ),
               builder: (QueryResult result, {VoidCallback? refetch, FetchMore? fetchMore}) {
+                List<Pokemon> pokemonList = [];
+                bool isOfflineMode = false;
+
                 if (result.hasException) {
-                  return ErrorView(onRetry: () => refetch!());
+                  // OFFLINE: Load from Hive
+                  if (_cacheBox != null && _cacheBox!.containsKey('last_list')) {
+                    try {
+                      final cachedData = _cacheBox!.get('last_list');
+                      if (cachedData is List) {
+                        pokemonList = cachedData
+                            .map((e) => Pokemon.fromMap(Map<String, dynamic>.from(e)))
+                            .toList();
+                        isOfflineMode = true;
+                      }
+                    } catch (e) {
+                      return ErrorView(onRetry: () => refetch!());
+                    }
+                  } else {
+                    return ErrorView(onRetry: () => refetch!());
+                  }
+                } else if (result.isLoading && result.data == null) {
+                   return const Center(child: CircularProgressIndicator());
+                } else {
+                  // ONLINE: Process and Cache
+                  final pokemonListRaw = result.data?['pokemon_v2_pokemon'] as List? ?? [];
+                  pokemonList = pokemonListRaw.map((p) => Pokemon.fromMap(p)).toList();
+                  
+                  // Background image caching
+                  if (_cacheBox != null && pokemonListRaw.isNotEmpty && !_isCaching) {
+                    // Trigger caching
+                    Future.microtask(() => _cacheImagesAndSave(pokemonListRaw));
+                  }
                 }
-
-                if (result.isLoading && result.data == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final pokemonListRaw = result.data?['pokemon_v2_pokemon'] as List? ?? [];
-                final List<Pokemon> pokemonList = pokemonListRaw.map((p) => Pokemon.fromMap(p)).toList();
 
                 if (pokemonList.isEmpty && !result.isLoading) {
                   return const Center(child: Text("No se encontraron resultados"));
                 }
 
-                _scrollController.addListener(() {
-                  if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
-                    if (result.isLoading || fetchMore == null) return;
+                if (!isOfflineMode) {
+                  _scrollController.addListener(() {
+                    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+                      if (result.isLoading || fetchMore == null) return;
 
-                    FetchMoreOptions opts = FetchMoreOptions(
-                      variables: {'offset': pokemonList.length},
-                      updateQuery: (previousResultData, fetchMoreResultData) {
-                        final List<dynamic> repos = [
-                          ...previousResultData!['pokemon_v2_pokemon'] as List<dynamic>,
-                          ...fetchMoreResultData!['pokemon_v2_pokemon'] as List<dynamic>
-                        ];
-                        fetchMoreResultData['pokemon_v2_pokemon'] = repos;
-                        return fetchMoreResultData;
-                      },
-                    );
-                    fetchMore(opts);
-                  }
-                });
+                      FetchMoreOptions opts = FetchMoreOptions(
+                        variables: {'offset': pokemonList.length},
+                        updateQuery: (previousResultData, fetchMoreResultData) {
+                          final List<dynamic> repos = [
+                            ...previousResultData!['pokemon_v2_pokemon'] as List<dynamic>,
+                            ...fetchMoreResultData!['pokemon_v2_pokemon'] as List<dynamic>
+                          ];
+                          fetchMoreResultData['pokemon_v2_pokemon'] = repos;
+                          
+                          // Cache new items
+                          final newItems = fetchMoreResultData!['pokemon_v2_pokemon'] as List<dynamic>;
+                          if (!_isCaching) {
+                             Future.microtask(() => _cacheImagesAndSave(newItems));
+                          }
+                          
+                          return fetchMoreResultData;
+                        },
+                      );
+                      fetchMore(opts);
+                    }
+                  });
+                }
 
                 return Container(
                   color: Theme.of(context).colorScheme.background,
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: GridView.builder(
-                    controller: _scrollController,
-                    itemCount: pokemonList.length + (result.isLoading ? 1 : 0),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 0.88,
-                    ),
-                    itemBuilder: (context, i) {
-                      if (i == pokemonList.length) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      final p = pokemonList[i];
-
-                      final base = p.types.isNotEmpty ? typeColor(p.types.first, Theme.of(context).colorScheme.secondary) : Colors.grey;
-                      final bg = LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          base.withOpacity(.22),
-                          base.withOpacity(.08),
-                          base.withOpacity(.02),
-                        ],
-                        stops: const [0.0, 0.6, 1.0],
-                      );
-
-                      return InkWell(
-                        onTap: () => context.push('/pokemon/${p.id}'), // <-- FIX: Use push instead of go
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            gradient: bg,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                  child: Column(
+                    children: [
+                      if (isOfflineMode)
+                        Container(
+                          width: double.infinity,
+                          color: Colors.orange.shade100,
+                          padding: const EdgeInsets.all(8),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: const Text(
+                            "Modo Offline: Mostrando última lista guardada",
+                            style: TextStyle(color: Colors.brown, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
                           ),
-                          child: Stack(
-                            children: [
-                              Positioned(
-                                right: -24,
-                                top: -24,
-                                child: Container(
-                                  width: 120,
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: RadialGradient(
-                                      colors: [
-                                        base.withOpacity(.12),
-                                        base.withOpacity(.04),
-                                      ],
+                        ),
+                      Expanded(
+                        child: GridView.builder(
+                          controller: _scrollController,
+                          itemCount: pokemonList.length + (result.isLoading ? 1 : 0),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 0.88,
+                          ),
+                          itemBuilder: (context, i) {
+                            if (i == pokemonList.length) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+                        
+                            final p = pokemonList[i];
+                        
+                            final base = p.types.isNotEmpty ? typeColor(p.types.first, Theme.of(context).colorScheme.secondary) : Colors.grey;
+                            final bg = LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                base.withOpacity(.22),
+                                base.withOpacity(.08),
+                                base.withOpacity(.02),
+                              ],
+                              stops: const [0.0, 0.6, 1.0],
+                            );
+                        
+                            return InkWell(
+                              onTap: () => context.push('/pokemon/${p.id}'),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  gradient: bg,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                child: Stack(
                                   children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            p.name[0].toUpperCase() + p.name.substring(1),
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                              color: Colors.grey[800],
-                                              fontSize: 16,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                    Positioned(
+                                      right: -24,
+                                      top: -24,
+                                      child: Container(
+                                        width: 120,
+                                        height: 120,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: RadialGradient(
+                                            colors: [
+                                              base.withOpacity(.12),
+                                              base.withOpacity(.04),
+                                            ],
                                           ),
                                         ),
-                                        PokedexBadge(id: p.id),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      children: p.types.map((t) => TypeChip(type: t)).toList(),
-                                    ),
-                                    const Spacer(),
-                                    Hero(
-                                      tag: "pkm-${p.id}",
-                                      child: Align(
-                                        alignment: Alignment.bottomRight,
-                                        child: Image.network(
-                                          p.imageUrl,
-                                          height: 96,
-                                          fit: BoxFit.contain,
-                                          filterQuality: FilterQuality.medium,
-                                          loadingBuilder: (context, child, progress) {
-                                            if (progress == null) return child;
-                                            return const Center(child: CircularProgressIndicator.adaptive());
-                                          },
-                                        ),
                                       ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  p.name[0].toUpperCase() + p.name.substring(1),
+                                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Colors.grey[800],
+                                                    fontSize: 16,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              PokedexBadge(id: p.id),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 4,
+                                            children: p.types.map((t) => TypeChip(type: t)).toList(),
+                                          ),
+                                          const Spacer(),
+                                          Hero(
+                                            tag: "pkm-${p.id}",
+                                            child: Align(
+                                              alignment: Alignment.bottomRight,
+                                              // --- HYBRID IMAGE WIDGET ---
+                                              child: p.imageBase64 != null
+                                                  ? Image.memory(
+                                                      base64Decode(p.imageBase64!),
+                                                      height: 96,
+                                                      fit: BoxFit.contain,
+                                                    )
+                                                  : CachedNetworkImage(
+                                                      imageUrl: p.imageUrl,
+                                                      height: 96,
+                                                      fit: BoxFit.contain,
+                                                      filterQuality: FilterQuality.medium,
+                                                      placeholder: (context, url) => const SizedBox(
+                                                        width: 96,
+                                                        height: 96,
+                                                        child: Center(child: CircularProgressIndicator.adaptive()),
+                                                      ),
+                                                      errorWidget: (context, url, error) {
+                                                        return const Icon(Icons.broken_image, size: 48, color: Colors.grey);
+                                                      },
+                                                    ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    ValueListenableBuilder<Box<int>>(
+                                      valueListenable: _favoritesRepo.a_box.listenable(),
+                                      builder: (context, box, child) {
+                                        final isFavorite = _favoritesRepo.isFavorite(p.id);
+                                        return Positioned(
+                                          bottom: 4,
+                                          left: 4,
+                                          child: IconButton(
+                                            visualDensity: VisualDensity.compact,
+                                            icon: AnimatedSwitcher(
+                                              duration: const Duration(milliseconds: 300),
+                                              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                                              child: Icon(
+                                                isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                                key: ValueKey(isFavorite),
+                                                color: isFavorite ? Colors.red : Colors.black26,
+                                                size: 24,
+                                                shadows: const [BoxShadow(color: Colors.white, blurRadius: 8, spreadRadius: 4)],
+                                              ),
+                                            ),
+                                            onPressed: () => _favoritesRepo.toggle(p),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
                               ),
-                              ValueListenableBuilder<Box<int>>(
-                                valueListenable: _favoritesRepo.a_box.listenable(),
-                                builder: (context, box, child) {
-                                  final isFavorite = _favoritesRepo.isFavorite(p.id);
-                                  return Positioned(
-                                    bottom: 4,
-                                    left: 4,
-                                    child: IconButton(
-                                      visualDensity: VisualDensity.compact,
-                                      icon: Icon(
-                                        isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                        color: isFavorite ? Colors.red : Colors.black26,
-                                        size: 24,
-                                        shadows: const [BoxShadow(color: Colors.white, blurRadius: 8, spreadRadius: 4)],
-                                      ),
-                                      onPressed: () => _favoritesRepo.toggle(p.id),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 );
               },

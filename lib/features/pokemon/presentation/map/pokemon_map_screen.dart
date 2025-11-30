@@ -31,13 +31,10 @@ class PokemonMapScreen extends StatelessWidget {
           width: 80.0,
           height: 80.0,
           point: regionLatLng,
-          child: Tooltip(
-            message: regionName,
-            child: const Icon(
-              Icons.location_on,
-              color: Colors.red,
-              size: 40.0,
-            ),
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.red,
+            size: 40.0,
           ),
         ),
       );
@@ -47,40 +44,92 @@ class PokemonMapScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Ubicación de $pokemonName'),
       ),
-      body: FlutterMap(
-        options: MapOptions(
-          initialCenter: regionLatLng ?? LatLng(-45, 135),
-          initialZoom: 3.0,
-          cameraConstraint: CameraConstraint.contain(
-            bounds: LatLngBounds(
-              LatLng(-90, 0),
-              LatLng(0, 180),
+      body: Column(
+        children: [
+          Expanded(
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: regionLatLng ?? const LatLng(-45, 135),
+                initialZoom: 3.0,
+                cameraConstraint: CameraConstraint.contain(
+                  bounds: LatLngBounds(
+                    const LatLng(-90, 0),
+                    const LatLng(0, 180),
+                  ),
+                ),
+              ),
+              children: [
+                // Cargar el mapa Pokémon como una sola imagen
+                OverlayImageLayer(
+                  overlayImages: [
+                    OverlayImage(
+                      bounds: LatLngBounds(
+                        const LatLng(-90, 0),
+                        const LatLng(0, 180),
+                      ),
+                      opacity: 1.0,
+                      imageProvider: const AssetImage("assets/images/world_map.png"),
+                    ),
+                  ],
+                ),
+                // Marcador único para la región del Pokémon
+                MarkerLayer(markers: markers),
+              ],
             ),
           ),
-
-          // 🔥 LO QUE AÑADÍ PARA CALIBRAR
-          onTap: (tapPosition, point) {
-            print("TAP → LAT: ${point.latitude}, LNG: ${point.longitude}");
-          },
-        ),
-
-        children: [
-          // Cargar el mapa Pokémon como una sola imagen
-          OverlayImageLayer(
-            overlayImages: [
-              OverlayImage(
-                bounds: LatLngBounds(
-                  LatLng(-90, 0),
-                  LatLng(0, 180),
+          // --- INFO PANEL ---
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
                 ),
-                opacity: 1.0,
-                imageProvider: const AssetImage("assets/images/world_map.png"),
-              ),
-            ],
+              ],
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Ubicación Principal",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  regionName,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (regionLatLng != null)
+                  Chip(
+                    avatar: const Icon(Icons.explore, size: 16, color: Colors.white),
+                    label: Text(
+                      "Lat: ${regionLatLng.latitude.toStringAsFixed(1)}, Lng: ${regionLatLng.longitude.toStringAsFixed(1)}",
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  )
+                else
+                  const Text(
+                    "Ubicación desconocida en este mapa",
+                    style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                  ),
+              ],
+            ),
           ),
-
-          // Marcador único para la región del Pokémon
-          MarkerLayer(markers: markers),
         ],
       ),
     );

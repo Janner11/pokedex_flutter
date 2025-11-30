@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/models/pokemon.dart';
@@ -79,12 +80,17 @@ class _EvolutionCard extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min, // Make the card only as wide as needed
             children: [
-              Image.network(
-                evolution.imageUrl,
+              CachedNetworkImage(
+                imageUrl: evolution.imageUrl,
                 width: 70,
                 height: 70,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) =>
+                placeholder: (context, url) => const SizedBox(
+                  width: 70, 
+                  height: 70, 
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2))
+                ),
+                errorWidget: (context, url, error) =>
                     const Icon(Icons.image_not_supported, size: 70, color: Colors.grey),
               ),
               const SizedBox(width: 12),

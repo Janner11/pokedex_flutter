@@ -53,7 +53,14 @@ class Shell extends StatelessWidget {
         break;
       case 0:
       default:
-        context.go('/');
+        // If we are already on the home tab (index 0), force a reload
+        if (_calculateSelectedIndex(context) == 0) {
+          // Navigate to root with a unique refresh parameter to force a rebuild
+          context.go('/?refresh=${DateTime.now().millisecondsSinceEpoch}');
+        } else {
+          // Normal navigation to home
+          context.go('/');
+        }
         break;
     }
   }

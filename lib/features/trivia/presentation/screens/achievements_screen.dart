@@ -11,12 +11,18 @@ class AchievementsScreen extends StatefulWidget {
 
 class _AchievementsScreenState extends State<AchievementsScreen> {
   final _achievementsRepo = AchievementsRepository();
-  late Future<Set<String>> _unlockedAchievementsFuture;
+  Set<String> _unlockedIds = {};
 
   @override
   void initState() {
     super.initState();
-    _unlockedAchievementsFuture = _achievementsRepo.getUnlockedAchievements();
+    _loadAchievements();
+  }
+
+  void _loadAchievements() {
+    setState(() {
+      _unlockedIds = _achievementsRepo.getUnlockedAchievements();
+    });
   }
 
   @override
@@ -25,46 +31,31 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       appBar: AppBar(
         title: const Text('Logros'),
       ),
-      body: FutureBuilder<Set<String>>(
-        future: _unlockedAchievementsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: ListView.builder(
+        itemCount: allAchievements.length,
+        itemBuilder: (context, index) {
+          final achievement = allAchievements[index];
+          final isUnlocked = _unlockedIds.contains(achievement.id);
 
-          if (snapshot.hasError) {
-            return const Center(child: Text('Error al cargar los logros.'));
-          }
-
-          final unlockedIds = snapshot.data ?? {};
-
-          return ListView.builder(
-            itemCount: allAchievements.length,
-            itemBuilder: (context, index) {
-              final achievement = allAchievements[index];
-              final isUnlocked = unlockedIds.contains(achievement.id);
-
-              return ListTile(
-                leading: Icon(
-                  isUnlocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
-                  size: 40,
-                  color: isUnlocked ? Colors.amber : Colors.grey,
-                ),
-                title: Text(
-                  achievement.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isUnlocked ? Colors.black : Colors.grey,
-                  ),
-                ),
-                subtitle: Text(
-                  achievement.description,
-                  style: TextStyle(
-                    color: isUnlocked ? Colors.black54 : Colors.grey,
-                  ),
-                ),
-              );
-            },
+          return ListTile(
+            leading: Icon(
+              isUnlocked ? Icons.emoji_events_rounded : Icons.lock_outline_rounded,
+              size: 40,
+              color: isUnlocked ? Colors.amber : Colors.grey,
+            ),
+            title: Text(
+              achievement.name,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isUnlocked ? Colors.black : Colors.grey,
+              ),
+            ),
+            subtitle: Text(
+              achievement.description,
+              style: TextStyle(
+                color: isUnlocked ? Colors.black87 : Colors.grey,
+              ),
+            ),
           );
         },
       ),
