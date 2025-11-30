@@ -39,6 +39,9 @@ dependencies:
   # 🔹 Gráficos (Radar Chart para stats)
   fl_chart: ^0.68.0
 
+  # 🔹 Mapa interactivo
+  flutter_map: ^6.1.0 # Usando la última versión estable
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -49,6 +52,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/data/
 
 # --- FLUTTER LAUNCHER ICONS CONFIG ---
 flutter_launcher_icons:

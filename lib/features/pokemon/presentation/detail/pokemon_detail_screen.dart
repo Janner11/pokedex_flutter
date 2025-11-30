@@ -11,6 +11,7 @@ import '../widgets/moves_list_view.dart';
 import '../widgets/stats_radar_chart.dart';
 import '../widgets/type_chip.dart';
 import '../widgets/pokedex_appbar.dart';
+import '../map/pokemon_map_screen.dart'; // Importar la nueva pantalla del mapa
 
 const getPokemonDetail = r"""
   query GetPokemonDetail($id: Int!) {
@@ -148,6 +149,15 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
           return Scaffold(
             appBar: PokedexAppBar(
               title: "${pokemon.name[0].toUpperCase()}${pokemon.name.substring(1)}  #${pokemon.id.toString().padLeft(4, '0')}",
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.map),
+                  onPressed: () {
+                    // Navegar pasando el nombre y el ID del Pokémon
+                    context.push('/pokemon_map/${pokemon.name}/${pokemon.id}');
+                  },
+                ),
+              ],
             ),
             floatingActionButton: ValueListenableBuilder<Box<int>>(
               valueListenable: _favoritesRepo.a_box.listenable(),

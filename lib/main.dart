@@ -11,6 +11,7 @@ import 'features/pokemon/presentation/shell/shell.dart';
 import 'features/trivia/presentation/screens/achievements_screen.dart';
 import 'features/trivia/presentation/screens/ranking_screen.dart';
 import 'features/trivia/presentation/screens/trivia_screen.dart';
+import 'features/pokemon/presentation/map/pokemon_map_screen.dart'; // Importar la nueva pantalla del mapa
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +38,17 @@ class App extends StatelessWidget {
           builder: (context, state) => PokemonDetailScreen(
             id: state.pathParameters['id']!,
           ),
+        ),
+        GoRoute(
+          path: PokemonMapScreen.route, // La ruta ahora es '/pokemon_map/:pokemonName/:pokemonId'
+          builder: (context, state) {
+            final pokemonName = state.pathParameters['pokemonName']!;
+            final pokemonId = int.parse(state.pathParameters['pokemonId']!);
+            return PokemonMapScreen(
+              pokemonName: pokemonName,
+              pokemonId: pokemonId,
+            );
+          },
         ),
         GoRoute(
           path: '/trivia/ranking',

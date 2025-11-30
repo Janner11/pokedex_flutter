@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Kanto",
+    "latitude": 50.0,
+    "longitude": 50.0
+  },
+  {
+    "name": "Johto",
+    "latitude": 40.0,
+    "longitude": 40.0
+  },
+  {
+    "name": "Hoenn",
+    "latitude": 30.0,
+    "longitude": 60.0
+  },
+  {
+    "name": "Sinnoh",
+    "latitude": 60.0,
+    "longitude": 30.0
+  },
+  {
+    "name": "Unova",
+    "latitude": 20.0,
+    "longitude": 70.0
+  },
+  {
+    "name": "Kalos",
+    "latitude": 70.0,
+    "longitude": 20.0
+  },
+  {
+    "name": "Alola",
+    "latitude": 10.0,
+    "longitude": 80.0
+  },
+  {
+    "name": "Galar",
+    "latitude": 80.0,
+    "longitude": 10.0
+  }
+]
