@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class Shell extends StatelessWidget {
   final Widget child;
@@ -12,20 +13,20 @@ class Shell extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _calculateSelectedIndex(context),
         onTap: (index) => _onItemTapped(index, context),
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.catching_pokemon),
-            label: 'Pokédex',
+            icon: const Icon(Icons.catching_pokemon),
+            label: AppLocalizations.of(context).pokedex,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_border_rounded),
-            activeIcon: Icon(Icons.favorite_rounded),
-            label: 'Favoritos',
+            icon: const Icon(Icons.favorite_border_rounded),
+            activeIcon: const Icon(Icons.favorite_rounded),
+            label: AppLocalizations.of(context).favorites,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.psychology_alt_outlined),
-            activeIcon: Icon(Icons.psychology_alt),
-            label: 'Trivia',
+            icon: const Icon(Icons.psychology_alt_outlined),
+            activeIcon: const Icon(Icons.psychology_alt),
+            label: AppLocalizations.of(context).trivia,
           ),
         ],
       ),

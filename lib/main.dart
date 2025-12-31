@@ -108,7 +108,7 @@ class App extends StatelessWidget {
 
     return GraphQLProvider(
       client: client,
-      // 🔹 Escuchar cambios en el tema
+      // 🔹 Escuchar cambios en el tema y el idioma
       child: ListenableBuilder(
         listenable: themeProvider,
         builder: (context, _) {
@@ -120,6 +120,7 @@ class App extends StatelessWidget {
             themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             // ------------------
             routerConfig: router,
+            locale: themeProvider.locale, // 🔹 Usar el idioma seleccionado
             localizationsDelegates: const [
               AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,

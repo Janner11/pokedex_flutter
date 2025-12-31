@@ -16,6 +16,7 @@ import '../widgets/type_chip.dart';
 import '../widgets/pokedex_appbar.dart';
 import '../widgets/pokedex_badge.dart';
 import '../widgets/filter_dialog.dart';
+import '../../../../l10n/app_localizations.dart';
 
 const getPokemonList = r"""
   query GetPokemonList($limit: Int!, $offset: Int!, $where: pokemon_v2_pokemon_bool_exp, $order_by: [pokemon_v2_pokemon_order_by!]) {
@@ -206,8 +207,22 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
 
     return Scaffold(
       appBar: PokedexAppBar(
-        title: "Pokédex",
+        title: AppLocalizations.of(context).pokedex,
         actions: [
+          // 🔹 BOTÓN DE IDIOMA
+          ListenableBuilder(
+            listenable: themeProvider,
+            builder: (context, _) {
+              return IconButton(
+                icon: Text(
+                  themeProvider.locale.languageCode.toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: () => themeProvider.toggleLanguage(),
+                tooltip: "Cambiar idioma",
+              );
+            },
+          ),
           // 🔹 BOTÓN DE MODO OSCURO
           ListenableBuilder(
             listenable: themeProvider,
@@ -243,7 +258,7 @@ class _PokemonListScreenState extends State<PokemonListScreen> {
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
-                hintText: "Buscar Pokémon...",
+                hintText: AppLocalizations.of(context).searchPokemon,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: const BorderSide(width: 1.5),

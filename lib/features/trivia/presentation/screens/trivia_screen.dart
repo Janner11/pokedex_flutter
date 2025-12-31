@@ -115,7 +115,7 @@ class _TriviaScreenState extends State<TriviaScreen> {
     if (_allPokemon.isEmpty) return;
 
     final random = Random();
-    final validPokemon = _allPokemon.where((p) => p.imageUrl.isNotEmpty).toList();
+    final validPokemon = _allPokemon.where((p) => p.imageUrl.isNotEmpty || p.imageBase64 != null).toList();
     
     if (validPokemon.length < 4) {
        _setError("Not enough Pokémon with images.");

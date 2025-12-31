@@ -45,6 +45,8 @@ class AppLocalizations {
       'weight': 'Weight',
       'gender': 'Gender',
       'egg_groups': 'Egg Groups',
+      'trivia': 'Trivia',
+      'search_pokemon': 'Search Pokémon...',
     },
     'es': {
       'trivia_title': '¿Quién es este Pokémon?',
@@ -78,6 +80,8 @@ class AppLocalizations {
       'weight': 'Peso',
       'gender': 'Género',
       'egg_groups': 'Grupos Huevo',
+      'trivia': 'Trivia',
+      'search_pokemon': 'Buscar Pokémon...',
     },
   };
 
@@ -114,6 +118,8 @@ class AppLocalizations {
   String get weight => _localizedValues[locale.languageCode]!['weight']!;
   String get gender => _localizedValues[locale.languageCode]!['gender']!;
   String get eggGroups => _localizedValues[locale.languageCode]!['egg_groups']!;
+  String get trivia => _localizedValues[locale.languageCode]!['trivia']!;
+  String get searchPokemon => _localizedValues[locale.languageCode]!['search_pokemon']!;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
