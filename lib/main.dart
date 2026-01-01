@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/graphql_client.dart';
 import 'core/theming.dart';
 import 'core/theme_provider.dart'; // 🔹 Importar ThemeProvider
@@ -14,6 +15,7 @@ import 'features/trivia/presentation/screens/trivia_screen.dart';
 import 'features/pokemon/presentation/map/pokemon_map_screen.dart';
 import 'features/trivia/presentation/screens/ranking_screen.dart';
 import 'features/trivia/presentation/screens/achievements_screen.dart';
+import 'features/onboarding/onboarding_screen.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
@@ -42,7 +44,27 @@ class App extends StatelessWidget {
     final router = GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: '/',
+      redirect: (context, state) async {
+        final prefs = await SharedPreferences.getInstance();
+        final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+        
+        // If onboarding is not completed and we are not already on the onboarding screen
+        if (!onboardingCompleted && state.matchedLocation != '/onboarding') {
+          return '/onboarding';
+        }
+        
+        // If onboarding is completed and we are trying to access onboarding screen
+        if (onboardingCompleted && state.matchedLocation == '/onboarding') {
+          return '/';
+        }
+        
+        return null;
+      },
       routes: [
+        GoRoute(
+          path: '/onboarding',
+          builder: (context, state) => const OnboardingScreen(),
+        ),
         GoRoute(
           path: '/pokemon/:id',
           builder: (context, state) => PokemonDetailScreen(

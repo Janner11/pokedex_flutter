@@ -47,6 +47,9 @@ class AppLocalizations {
       'egg_groups': 'Egg Groups',
       'trivia': 'Trivia',
       'search_pokemon': 'Search Pokémon...',
+      'onboarding_title': 'Welcome to the Pokédex',
+      'onboarding_description': 'Discover and explore the world of Pokémon. Find detailed stats, evolutions, and more in one place.',
+      'onboarding_button': 'Get Started',
     },
     'es': {
       'trivia_title': '¿Quién es este Pokémon?',
@@ -82,6 +85,9 @@ class AppLocalizations {
       'egg_groups': 'Grupos Huevo',
       'trivia': 'Trivia',
       'search_pokemon': 'Buscar Pokémon...',
+      'onboarding_title': 'Bienvenido a la Pokédex',
+      'onboarding_description': 'Descubre y explora el mundo Pokémon. Encuentra estadísticas detalladas, evoluciones y más en un solo lugar.',
+      'onboarding_button': 'Comenzar',
     },
   };
 
@@ -120,6 +126,11 @@ class AppLocalizations {
   String get eggGroups => _localizedValues[locale.languageCode]!['egg_groups']!;
   String get trivia => _localizedValues[locale.languageCode]!['trivia']!;
   String get searchPokemon => _localizedValues[locale.languageCode]!['search_pokemon']!;
+
+  // Onboarding Strings
+  String get onboardingTitle => _localizedValues[locale.languageCode]!['onboarding_title']!;
+  String get onboardingDescription => _localizedValues[locale.languageCode]!['onboarding_description']!;
+  String get onboardingButton => _localizedValues[locale.languageCode]!['onboarding_button']!;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
