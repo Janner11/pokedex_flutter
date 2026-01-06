@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/favorites_repository.dart';
 import '../../domain/models/pokemon.dart';
 import '../../../pokemon/data/type_colors.dart';
@@ -119,13 +123,30 @@ class PokemonDetailScreen extends StatefulWidget {
 
 class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
   final _favoritesRepo = FavoritesRepository();
+  final ScreenshotController _screenshotController = ScreenshotController();
   bool _showShiny = false;
+
+  Future<void> _sharePokemonCard(String pokemonName) async {
+    try {
+      final image = await _screenshotController.capture();
+      if (image != null) {
+        final directory = await getTemporaryDirectory();
+        final imagePath = await File('${directory.path}/$pokemonName.png').create();
+        await imagePath.writeAsBytes(image);
+
+        await Share.shareXFiles([
+          XFile(imagePath.path)
+        ], text: '¡Mira este $pokemonName en mi Pokédex!');
+      }
+    } catch (e) {
+      debugPrint('Error sharing: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final pid = int.tryParse(widget.id);
     final theme = Theme.of(context);
-    // Color de superficie sutil para contenedores (adaptable a modo oscuro)
     final surfaceColor = theme.colorScheme.surfaceVariant.withOpacity(0.3);
     final borderColor = theme.colorScheme.outline.withOpacity(0.2);
 
@@ -136,9 +157,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
           fetchPolicy: FetchPolicy.cacheAndNetwork, 
         ),
         builder: (QueryResult result, {refetch, fetchMore}) {
-          final p = result.data?['pokemon_v2_pokemon_by_pk'];
-
-          if (result.hasException || (result.data != null && p == null)) {
+          if (result.hasException || (result.data != null && result.data!['pokemon_v2_pokemon_by_pk'] == null)) {
             return Scaffold(
               appBar: const PokedexAppBar(),
               body: ErrorView(
@@ -154,16 +173,16 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
             );
           }
 
-          final pokemon = Pokemon.fromMap(p);
+          final pokemon = Pokemon.fromMap(result.data!['pokemon_v2_pokemon_by_pk']);
 
-          final base = pokemon.types.isNotEmpty ? typeColor(pokemon.types.first, Theme.of(context).colorScheme.secondary) : Colors.grey;
+          final base = pokemon.types.isNotEmpty ? typeColor(pokemon.types.first, theme.colorScheme.secondary) : Colors.grey;
           final headerGrad = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
               base.withOpacity(.25),
               base.withOpacity(.10),
-              Theme.of(context).colorScheme.background,
+              theme.colorScheme.background,
             ],
             stops: const [0.0, 0.5, 1.0],
           );
@@ -178,6 +197,12 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
             appBar: PokedexAppBar(
               title: "${pokemon.name[0].toUpperCase()}${pokemon.name.substring(1)}  #${pokemon.id.toString().padLeft(4, '0')}",
               actions: [
+                // ✅ BOTÓN DE COMPARTIR RESTAURADO
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: () => _sharePokemonCard(pokemon.name),
+                  tooltip: 'Compartir',
+                ),
                 IconButton(
                   icon: const Icon(Icons.map),
                   onPressed: () {
@@ -201,55 +226,62 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
               },
             ),
             body: Container(
-              color: Theme.of(context).colorScheme.background,
+              color: theme.colorScheme.background,
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                      decoration: BoxDecoration(gradient: headerGrad),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 10),
-                          Stack(
-                            alignment: Alignment.topRight,
-                            children: [
-                              Hero(
-                                tag: "pkm-${pokemon.id}",
-                                child: Container(
-                                  padding: const EdgeInsets.all(20),
-                                  child: Image.network(
-                                    displayImage,
-                                    height: 200,
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.medium,
+                    Screenshot(
+                      controller: _screenshotController,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                        decoration: BoxDecoration(color: theme.colorScheme.background, gradient: headerGrad),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 10),
+                            Stack(
+                              alignment: Alignment.topRight,
+                              children: [
+                                Hero(
+                                  tag: "pkm-${pokemon.id}",
+                                  child: Container(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Image.network(
+                                      displayImage,
+                                      height: 200,
+                                      fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.medium,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              if (pokemon.shinyImageUrl.isNotEmpty)
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.auto_awesome,
-                                    color: _showShiny ? Colors.amber : Colors.grey.withOpacity(0.5),
-                                    size: 30,
+                                if (pokemon.shinyImageUrl.isNotEmpty)
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.auto_awesome,
+                                      color: _showShiny ? Colors.amber : Colors.grey.withOpacity(0.5),
+                                      size: 30,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _showShiny = !_showShiny;
+                                      });
+                                    },
+                                    tooltip: "Ver Shiny",
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _showShiny = !_showShiny;
-                                    });
-                                  },
-                                  tooltip: "Ver Shiny",
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 8,
-                            children: pokemon.types.map((t) => TypeChip(type: t)).toList(),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
+                              ],
+                            ),
+                            Text(
+                              pokemon.name[0].toUpperCase() + pokemon.name.substring(1),
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              children: pokemon.types.map((t) => TypeChip(type: t)).toList(),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                     Padding(
@@ -264,7 +296,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
-                                color: surfaceColor, // 🔹 COLOR ADAPTABLE
+                                color: surfaceColor,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: borderColor),
                               ),
@@ -272,7 +304,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                 child: DropdownButton<int>(
                                   isExpanded: true,
                                   value: pokemon.id,
-                                  dropdownColor: theme.colorScheme.surface, // Fondo del menú desplegable
+                                  dropdownColor: theme.colorScheme.surface,
                                   items: pokemon.variants.map((variant) {
                                     return DropdownMenuItem<int>(
                                       value: variant.id,
@@ -280,7 +312,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                         variant.name.replaceAll('-', ' ').capitalize(),
                                         style: TextStyle(
                                           fontWeight: FontWeight.w500,
-                                          color: theme.colorScheme.onSurface, // Texto adaptable
+                                          color: theme.colorScheme.onSurface, 
                                         ),
                                       ),
                                     );
@@ -302,14 +334,13 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                               style: TextStyle(
                                 fontSize: 15, 
                                 height: 1.4, 
-                                color: theme.colorScheme.onBackground.withOpacity(0.8), // Texto adaptable
+                                color: theme.colorScheme.onBackground.withOpacity(0.8),
                               ),
                               textAlign: TextAlign.justify,
                             ),
                             const SizedBox(height: 20),
                           ],
                           
-                          // 🔹 FILA INFO (Altura, Peso...)
                           _buildInfoRow(pokemon, surfaceColor),
                           
                           if (pokemon.eggGroups.isNotEmpty) ...[
@@ -322,11 +353,11 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                   child: Chip(
                                     label: Text(g.capitalize()),
                                     visualDensity: VisualDensity.compact,
-                                    backgroundColor: surfaceColor, // 🔹 Fondo adaptable
+                                    backgroundColor: surfaceColor,
                                     side: BorderSide(color: borderColor),
                                     labelStyle: TextStyle(
                                       fontWeight: FontWeight.w600, 
-                                      color: theme.colorScheme.onSurface, // Texto adaptable
+                                      color: theme.colorScheme.onSurface,
                                     ), 
                                   ),
                                 )),
@@ -343,7 +374,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: surfaceColor, // 🔹 Fondo adaptable
+                                color: surfaceColor,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: borderColor),
                               ),
@@ -359,7 +390,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                         Expanded(
                                           child: LinearProgressIndicator(
                                             value: e.value / 255.0,
-                                            backgroundColor: theme.colorScheme.surfaceVariant, // Fondo de barra adaptable
+                                            backgroundColor: theme.colorScheme.surfaceVariant,
                                             color: _getStatColor(e.key, base),
                                             minHeight: 6,
                                             borderRadius: BorderRadius.circular(3),
@@ -393,7 +424,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: pokemon.abilities.map((a) => Card(
                               elevation: 0,
-                              color: surfaceColor, // 🔹 Fondo adaptable
+                              color: surfaceColor,
                               shape: RoundedRectangleBorder(
                                 side: BorderSide(color: borderColor),
                                 borderRadius: BorderRadius.circular(8),
@@ -411,7 +442,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold, 
                                             fontSize: 15,
-                                            color: theme.colorScheme.onSurface, // Texto adaptable
+                                            color: theme.colorScheme.onSurface,
                                           ),
                                         ),
                                         if (a.isHidden) ...[
@@ -419,7 +450,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: theme.colorScheme.secondaryContainer, // Color sutil
+                                              color: theme.colorScheme.secondaryContainer,
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Text(
@@ -427,7 +458,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                               style: TextStyle(
                                                 fontSize: 10, 
                                                 fontWeight: FontWeight.bold,
-                                                color: theme.colorScheme.onSecondaryContainer, // Texto contrastado
+                                                color: theme.colorScheme.onSecondaryContainer,
                                               ),
                                             ),
                                           ),
@@ -438,7 +469,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         a.description,
-                                        style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant), // Texto secundario
+                                        style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
                                       ),
                                     ]
                                   ],
@@ -593,7 +624,7 @@ class _Section extends StatelessWidget {
         title,
         style: theme.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w800,
-          color: theme.colorScheme.onBackground.withOpacity(0.8), // Adaptable
+          color: theme.colorScheme.onBackground.withOpacity(0.8),
         ),
       ),
     );
